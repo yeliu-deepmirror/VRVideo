@@ -6,6 +6,7 @@ import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 import { BoxLineGeometry } from 'three/examples/jsm/geometries/BoxLineGeometry.js';
 
 import ThreeMeshUI from 'three-mesh-ui';
+import * as DM_UTILS from './create_container.js';
 
 /* Create the container object, the scene */
 
@@ -35,10 +36,17 @@ const room = new THREE.LineSegments(
 
 scene.add( room );
 
+
+// add mesh UI object
+const container = DM_UTILS.CreateContainer()
+scene.add( container );
+
+
 /* Render loop (called ~60 times/second, or more in VR) */
 
 renderer.setAnimationLoop( loop );
 
 function loop() {
+	ThreeMeshUI.update();  // tell three-mesh-ui when to update.
 	renderer.render( scene, camera );
 };
