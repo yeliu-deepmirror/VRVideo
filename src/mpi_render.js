@@ -43,3 +43,25 @@ export function createExperimentalCube(size = 0.2) {
   let mesh = new THREE.Mesh(geometry, material)
   return mesh;
 }
+
+
+export function createVideoPlane() {
+  var video = document.getElementById( 'video' );
+  video.play();
+  video.addEventListener( 'play', function () {
+
+    this.currentTime = 3;
+
+  } );
+
+  var texture = new THREE.VideoTexture( video );
+  // texture.colorSpace = THREE.SRGBColorSpace;
+  texture.colorSpace = THREE.sRGBEncoding;
+
+  const geometry = new THREE.PlaneGeometry( 8, 4.5 );
+  geometry.scale( 0.5, 0.5, 0.5 );
+  const material = new THREE.MeshBasicMaterial( { map: texture } );
+
+  let mesh = new THREE.Mesh( geometry, material );
+  return mesh;
+}

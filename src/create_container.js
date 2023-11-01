@@ -26,13 +26,14 @@ export function createContainer() {
   	imageBlock.set({ backgroundTexture: texture });
   });
 
+  let text_content = 'The spiny bush viper is known for its extremely keeled dorsal scales.';
   const textBlock = new ThreeMeshUI.Block({
   	height: 0.4,
   	width: 0.8,
   	margin: 0.05, // like in CSS, horizontal and vertical distance from neighbour
   	offset: 0.1 // distance separating the inner block from its parent
   }).add(
-		new ThreeMeshUI.Text( { content: 'The spiny bush viper is known for its extremely keeled dorsal scales.' } )
+		new ThreeMeshUI.Text( { content: text_content } )
 	);
   container.add( imageBlock, textBlock );
 
