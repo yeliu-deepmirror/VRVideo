@@ -3,10 +3,10 @@
 
 import * as THREE from 'three';
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
-import VRControl from 'three-mesh-ui/examples/utils/VRControl.js';
+import VRControl from './utils/VRControl.js';
 
-import ThreeMeshUI from 'three-mesh-ui';
-import * as DM_UTILS from './create_container.js';
+// import ThreeMeshUI from 'three-mesh-ui';
+import * as DM_UTILS from './utils/create_container.js';
 import * as DM_MPI from './mpi_render.js';
 import * as DM_GS from './gaussian_splatting_render.js';
 
@@ -37,7 +37,7 @@ function handleControllerRight() {
 }
 
 function loop() {
-	ThreeMeshUI.update();  // tell three-mesh-ui when to update.
+	// ThreeMeshUI.update();  // tell three-mesh-ui when to update.
 	renderer.render( scene, camera );
 
 	for(let object of scene_rotation_cubes) {
@@ -83,7 +83,7 @@ function init() {
 	document.body.appendChild( renderer.domElement );
 
 	// create controller
-	vr_control = VRControl( renderer, dolly, scene );
+	vr_control = VRControl( renderer, camera, scene );
 	vr_control.controllers[0].addEventListener( 'connected', function (event) {
 		console.log("connect gamepad 0");
 		gamepad_0 = event.data.gamepad;
@@ -96,14 +96,11 @@ function init() {
 	dolly.add(vr_control.controllerGrips[ 0 ], vr_control.controllers[ 0 ]);
 	dolly.add(vr_control.controllerGrips[ 1 ], vr_control.controllers[ 1 ]);
 
-	// add mesh UI object
-	const container = DM_UTILS.createContainer()
-	scene.add( container );
-
 	DM_UTILS.setUpRoom(scene)
 	DM_UTILS.addLighting(scene, true);
 	addBasicCube();
 	DM_GS.loadPly(scene);
+	scene.add(DM_MPI.createMpiPlane());
 
 	var mesh = DM_MPI.createExperimentalCube();
 	mesh.position.set( 0.9, 1, -1.8 );

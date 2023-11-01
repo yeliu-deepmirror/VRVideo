@@ -1,7 +1,6 @@
 import * as THREE from 'three';
 
-
-function vertexShader() {
+function vertexShaderBox() {
   return `
     varying vec3 vUv;
 
@@ -14,7 +13,7 @@ function vertexShader() {
   `
 }
 
-function fragmentShader() {
+function fragmentShaderBox() {
 return `
     uniform vec3 colorA;
     uniform vec3 colorB;
@@ -36,32 +35,61 @@ export function createExperimentalCube(size = 0.2) {
   let geometry = new THREE.BoxGeometry(size, size, size)
   let material =  new THREE.ShaderMaterial({
     uniforms: uniforms,
-    fragmentShader: fragmentShader(),
-    vertexShader: vertexShader(),
+    fragmentShader: fragmentShaderBox(),
+    vertexShader: vertexShaderBox(),
   })
 
   let mesh = new THREE.Mesh(geometry, material)
   return mesh;
 }
 
+function vertexShaderMpi() {
+  return `
+    varying vec3 vUv;
 
-export function createVideoPlane() {
-  var video = document.getElementById( 'video' );
-  video.play();
-  video.addEventListener( 'play', function () {
+    void main() {
+      vUv = position;
 
-    this.currentTime = 3;
+      vec4 modelViewPosition = modelViewMatrix * vec4(position, 1.0);
+      gl_Position = projectionMatrix * modelViewPosition;
+    }
+  `
+}
 
-  } );
+function fragmentShaderMpi() {
+return `
+    varying vec3 vUv;
 
-  var texture = new THREE.VideoTexture( video );
-  // texture.colorSpace = THREE.SRGBColorSpace;
-  texture.colorSpace = THREE.sRGBEncoding;
+    void main() {
+      gl_FragColor = vec4(1.0, 1.0, vUv.z, 1.0);
+    }
+`
+}
 
-  const geometry = new THREE.PlaneGeometry( 8, 4.5 );
-  geometry.scale( 0.5, 0.5, 0.5 );
-  const material = new THREE.MeshBasicMaterial( { map: texture } );
+export function createMpiPlane() {
+  // https://www.npmjs.com/package/opencv-bindings
+  // const cv = require('opencv-bindings');
+  // // set a timeout, it takes some time for opencv.js to load since it's just one massive file
+  // setTimeout(() => {
+  //     console.log(cv.getBuildInformation());
+  // }, 1000);
+
+  const geometry = new THREE.PlaneGeometry(2, 1);
+  let material =  new THREE.ShaderMaterial({
+    uniforms: {},
+    fragmentShader: fragmentShaderMpi(),
+    vertexShader: vertexShaderMpi(),
+  });
 
   let mesh = new THREE.Mesh( geometry, material );
+  mesh.position.set( 0.0, 2, -4 );
   return mesh;
 }
+
+
+// for render a MPI video
+// * find a fast way to load MPI images (video or file)
+// * render MPI images
+
+
+// for render LR video : need to render different scene for different eyes

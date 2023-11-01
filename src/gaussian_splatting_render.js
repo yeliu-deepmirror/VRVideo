@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 
+// https://github.com/antimatter15/splat/blob/main/main.js
 function processPlyBuffer(inputBuffer) {
   const ubuf = new Uint8Array(inputBuffer);
   // 10KB ought to be enough for a header...
@@ -172,6 +173,46 @@ return `
 `
 }
 
+function addPointcloudWithThreejs(scene, buffer) {
+  const rowLength = 3 * 4 + 3 * 4 + 4 + 4;
+  var vertexCount = Math.floor(buffer.byteLength / rowLength);
+  var scale = 1.0;
+
+  var positions = new Float32Array(vertexCount * 3);
+  var colors = new Float32Array(vertexCount * 3);
+  for (let j = 0; j < vertexCount; j++) {
+    const position = new Float32Array(buffer, j * rowLength, 3);
+    const rgba = new Uint8ClampedArray(
+      buffer,
+      j * rowLength + 4 * 3 + 4 * 3,
+      4,
+    );
+    positions[j * 3 + 0] = position[0]*scale;
+    positions[j * 3 + 1] = position[2]*scale;
+    positions[j * 3 + 2] = position[1]*scale;
+    colors[j * 3 + 0] = rgba[0]/255;
+    colors[j * 3 + 1] = rgba[1]/255;
+    colors[j * 3 + 2] = rgba[2]/255;
+  }
+
+  // https://betterprogramming.pub/point-clouds-visualization-with-three-js-5ef2a5e24587
+  var geometry = new THREE.BufferGeometry();
+  let material =  new THREE.ShaderMaterial({
+    uniforms: {},
+    fragmentShader: fragmentShader(),
+    vertexShader: vertexShader(),
+  })
+
+  geometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+  geometry.setAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
+  // pointcloud.geometry.attributes.displacement.needsUpdate = true;
+
+  var pointcloud = new THREE.Points(geometry, material);
+  pointcloud.rotateX(Math.PI / 2);
+  scene.add(pointcloud);
+  console.log("Loaded.")
+}
+
 export async function loadPly(scene, ply_path = './assets/pointcloud/jmw_night.ply') {
   // Load a file, set the bytes to firmware_byte_array
   console.log(ply_path)
@@ -179,46 +220,7 @@ export async function loadPly(scene, ply_path = './assets/pointcloud/jmw_night.p
   fileReader.onload = (e) =>
   {
     var buffer = processPlyBuffer(e.target.result);
-    const rowLength = 3 * 4 + 3 * 4 + 4 + 4;
-    var vertexCount = Math.floor(buffer.byteLength / rowLength);
-    var scale = 1.0;
-
-    var positions = new Float32Array(vertexCount * 3);
-    var colors = new Float32Array(vertexCount * 3);
-    for (let j = 0; j < vertexCount; j++) {
-      const position = new Float32Array(buffer, j * rowLength, 3);
-      const rgba = new Uint8ClampedArray(
-        buffer,
-        j * rowLength + 4 * 3 + 4 * 3,
-        4,
-      );
-      positions[j * 3 + 0] = position[0]*scale;
-      positions[j * 3 + 1] = position[2]*scale;
-      positions[j * 3 + 2] = position[1]*scale;
-      colors[j * 3 + 0] = rgba[0]/255;
-      colors[j * 3 + 1] = rgba[1]/255;
-      colors[j * 3 + 2] = rgba[2]/255;
-    }
-
-    // https://betterprogramming.pub/point-clouds-visualization-with-three-js-5ef2a5e24587
-    var geometry = new THREE.BufferGeometry();
-    let material =  new THREE.ShaderMaterial({
-      uniforms: {},
-      fragmentShader: fragmentShader(),
-      vertexShader: vertexShader(),
-    })
-
-    geometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
-    geometry.setAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
-
-    var pointcloud = new THREE.Points(geometry, material);
-    pointcloud.rotateX(Math.PI / 2);
-
-    console.log("add to scene.")
-
-    scene.add(pointcloud);
-
-    console.log("Loaded.")
+    addPointcloudWithThreejs(scene, buffer);
   }
 
   // fetch the ply file
