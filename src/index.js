@@ -73,7 +73,7 @@ function init() {
 	// https://github.com/NikLever/Learn-WebXR/blob/6294bd4d2b0ceb82536c4ab2bb3de79bd5f8decc/start/lecture6_1/app.js#L198
 	dolly = new THREE.Object3D();
 	dolly.add(camera);
-	scene.add( dolly );
+	scene.add(dolly);
 
 	/* Create the renderer object, with VR parameters enabled */
 	renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -83,7 +83,7 @@ function init() {
 	document.body.appendChild( renderer.domElement );
 
 	// create controller
-	vr_control = VRControl( renderer, camera, scene );
+	vr_control = VRControl( renderer, dolly, scene );
 	vr_control.controllers[0].addEventListener( 'connected', function (event) {
 		console.log("connect gamepad 0");
 		gamepad_0 = event.data.gamepad;
@@ -92,8 +92,9 @@ function init() {
 		console.log("connect gamepad 1");
 		gamepad_1 = event.data.gamepad;
 	});
-	scene.add( vr_control.controllerGrips[ 0 ], vr_control.controllers[ 0 ] );
-	scene.add( vr_control.controllerGrips[ 1 ], vr_control.controllers[ 1 ] );
+	// add controllers to dolly instead of directly to the scene
+	dolly.add(vr_control.controllerGrips[ 0 ], vr_control.controllers[ 0 ]);
+	dolly.add(vr_control.controllerGrips[ 1 ], vr_control.controllers[ 1 ]);
 
 	// add mesh UI object
 	const container = DM_UTILS.createContainer()
