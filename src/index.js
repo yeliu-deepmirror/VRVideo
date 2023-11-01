@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
+import Stats from 'three/addons/libs/stats.module.js';
 import VRControl from './utils/VRControl.js';
 
 // import ThreeMeshUI from 'three-mesh-ui';
@@ -12,7 +13,7 @@ import * as DM_GS from './gaussian_splatting_render.js';
 
 window.addEventListener('load', init);
 
-let scene, camera, dolly, renderer, vr_control;
+let scene, camera, dolly, renderer, vr_control, stats;
 let scene_rotation_cubes = [];
 let gamepad_0, gamepad_1;
 
@@ -37,6 +38,7 @@ function handleControllerRight() {
 }
 
 function loop() {
+	stats.update();
 	// ThreeMeshUI.update();  // tell three-mesh-ui when to update.
 	renderer.render( scene, camera );
 
@@ -60,6 +62,10 @@ function addBasicCube() {
 };
 
 function init() {
+	let container = document.getElementById( 'container' );
+	stats = new Stats();
+	container.appendChild( stats.dom );
+
 	console.log("Initialize the world.");
 	/* Create the container object, the scene */
 	scene = new THREE.Scene();
