@@ -151,8 +151,17 @@ function processPlyBuffer(inputBuffer) {
 
 function vertexShader() {
   return `
-    attribute vec3 color;
-    varying vec3 vColor;
+    precision mediump float;
+    precision mediump int;
+
+    uniform mat4 modelViewMatrix; // optional
+    uniform mat4 projectionMatrix; // optional
+
+    attribute vec3 position;
+    attribute vec4 color;
+
+
+    varying vec4 vColor;
 
     void main() {
       vColor = color;
@@ -165,10 +174,13 @@ function vertexShader() {
 
 function fragmentShader() {
 return `
-    varying vec3 vColor;
+    precision mediump float;
+    precision mediump int;
+
+    varying vec4 vColor;
 
     void main() {
-      gl_FragColor = vec4(vColor, 1.0 );
+      gl_FragColor = vColor;
     }
 `
 }
@@ -179,7 +191,7 @@ function addPointcloudWithThreejs(scene, buffer) {
   var scale = 1.0;
 
   var positions = new Float32Array(vertexCount * 3);
-  var colors = new Float32Array(vertexCount * 3);
+  var colors = new Float32Array(vertexCount * 4);
   for (let j = 0; j < vertexCount; j++) {
     const position = new Float32Array(buffer, j * rowLength, 3);
     const rgba = new Uint8ClampedArray(
@@ -190,21 +202,24 @@ function addPointcloudWithThreejs(scene, buffer) {
     positions[j * 3 + 0] = position[0]*scale;
     positions[j * 3 + 1] = position[2]*scale;
     positions[j * 3 + 2] = position[1]*scale;
-    colors[j * 3 + 0] = rgba[0]/255;
-    colors[j * 3 + 1] = rgba[1]/255;
-    colors[j * 3 + 2] = rgba[2]/255;
+    colors[j * 4 + 0] = rgba[0] / 255;
+    colors[j * 4 + 1] = rgba[1] / 255;
+    colors[j * 4 + 2] = rgba[2] / 255;
+    colors[j * 4 + 3] = rgba[3] / 255;
   }
 
   // https://betterprogramming.pub/point-clouds-visualization-with-three-js-5ef2a5e24587
   var geometry = new THREE.BufferGeometry();
-  let material =  new THREE.ShaderMaterial({
+  let material =  new THREE.RawShaderMaterial({
     uniforms: {},
     fragmentShader: fragmentShader(),
     vertexShader: vertexShader(),
+    side: THREE.DoubleSide,
+    transparent: true
   })
 
   geometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
-  geometry.setAttribute( 'color', new THREE.BufferAttribute( colors, 3 ) );
+  geometry.setAttribute( 'color', new THREE.BufferAttribute( colors, 4 ) );
   // pointcloud.geometry.attributes.displacement.needsUpdate = true;
 
   var pointcloud = new THREE.Points(geometry, material);
