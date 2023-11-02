@@ -9,7 +9,7 @@ import VRControl from './utils/VRControl.js';
 // import ThreeMeshUI from 'three-mesh-ui';
 import * as DM_UTILS from './utils/create_container.js';
 import * as DM_MPI from './mpi_render.js';
-import * as DM_GS from './gaussian_splatting_render.js';
+import * as DM_GS from './gaussian_splatting/gaussian_splatting_render.js';
 
 window.addEventListener('load', init);
 

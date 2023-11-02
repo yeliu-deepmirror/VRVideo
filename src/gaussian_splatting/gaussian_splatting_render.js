@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import {CreateWorker} from './gaussian_splatting/backend_work.js';
-import * as SHADER from './gaussian_splatting/shader.js';
+import {CreateWorker} from './backend_work.js';
+import * as SHADER from './shader.js';
 
 function RotateAndScale(rot_mats, scales, id, x, y, z, basic_scale = 2.0) {
   let id_3 = id * 3;
