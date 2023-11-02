@@ -76,7 +76,7 @@ function init() {
 	scene.background = new THREE.Color( 0x505050 );
 
 	/* Create the camera from which the scene will be seen */
-	camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+	camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 200 );
 	camera.position.set( 0, 1.6, 0 );
 	camera.lookAt( 0, 1, -1.8 );
 

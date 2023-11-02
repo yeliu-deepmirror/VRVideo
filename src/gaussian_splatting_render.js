@@ -1,53 +1,18 @@
 import * as THREE from 'three';
 import {CreateWorker} from './gaussian_splatting/backend_work.js';
-
-function vertexShader() {
-  return `
-    precision mediump float;
-    precision mediump int;
-
-    uniform mat4 modelViewMatrix; // optional
-    uniform mat4 projectionMatrix; // optional
-
-    attribute vec3 position;
-    attribute vec4 rgba;
-
-
-    varying vec4 vColor;
-
-    void main() {
-      vColor = rgba;
-
-      vec4 modelViewPosition = modelViewMatrix * vec4(position, 1.0);
-      gl_Position = projectionMatrix * modelViewPosition;
-    }
-  `
-}
-
-function fragmentShader() {
-return `
-    precision mediump float;
-    precision mediump int;
-
-    varying vec4 vColor;
-
-    void main() {
-      gl_FragColor = vColor;
-    }
-`
-}
+import * as SHADER from './gaussian_splatting/shader.js';
 
 export class GaussianSplattingRender {
   tag_ = '[GaussianSplattingRender]';
   worker_ = null;
 
   scene_ = null;
-  render_ = null;
+  renderer_ = null;
   camera_ = null;
 
-  constructor(scene, render, camera) {
+  constructor(scene, renderer, camera) {
     this.scene_ = scene;
-    this.render_ = render;
+    this.renderer_ = renderer;
     this.camera_ = camera;
     this.worker_ = new Worker(
       URL.createObjectURL(
@@ -74,8 +39,8 @@ export class GaussianSplattingRender {
         var geometry = new THREE.BufferGeometry();
         let material =  new THREE.RawShaderMaterial({
           uniforms: {},
-          fragmentShader: fragmentShader(),
-          vertexShader: vertexShader()
+          fragmentShader: SHADER.fragmentShader(),
+          vertexShader: SHADER.vertexShader()
         });
 
         geometry.setAttribute( 'position', new THREE.BufferAttribute( center, 3 ) );
@@ -87,7 +52,68 @@ export class GaussianSplattingRender {
         console.log(this.tag_, "[onmessage] Pointcloud Loaded.");
       }
     };
-    console.log(this.tag_, "initialize done.");
+    console.log(this.tag_, "worker initialize done.");
+
+    // initialize gl things
+    // https://github.com/antimatter15/splat/blob/main/main.js#L754
+    const gl = this.renderer_.getContext();
+  	const ext = gl.getExtension("ANGLE_instanced_arrays");
+
+    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+  	gl.shaderSource(vertexShader, SHADER.vertexShaderGS());
+  	gl.compileShader(vertexShader);
+  	if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS))
+  		console.error(this.tag_, gl.getShaderInfoLog(vertexShader));
+
+  	const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+  	gl.shaderSource(fragmentShader, SHADER.fragmentShaderGS());
+  	gl.compileShader(fragmentShader);
+  	if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS))
+  		console.error(this.tag_, gl.getShaderInfoLog(fragmentShader));
+
+  	const program = gl.createProgram();
+  	gl.attachShader(program, vertexShader);
+  	gl.attachShader(program, fragmentShader);
+  	gl.linkProgram(program);
+  	gl.useProgram(program);
+
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS))
+  		console.error(gl.getProgramInfoLog(program));
+
+  	gl.disable(gl.DEPTH_TEST); // Disable depth testing
+
+  	// Enable blending
+  	// gl.enable(gl.BLEND);
+    //
+  	// // Set blending function
+  	// gl.blendFuncSeparate(
+  	// 	gl.ONE_MINUS_DST_ALPHA,
+  	// 	gl.ONE,
+  	// 	gl.ONE_MINUS_DST_ALPHA,
+  	// 	gl.ONE,
+  	// );
+    //
+    // // Set blending equation
+  	// gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
+
+  	// projection
+  	const u_projection = gl.getUniformLocation(program, "projection");
+    let projection_matrix = this.camera_.projectionMatrix.clone();
+  	gl.uniformMatrix4fv(u_projection, false, projection_matrix.elements);
+
+    // // viewport
+  	// const u_viewport = gl.getUniformLocation(program, "viewport");
+  	// gl.uniform2fv(u_viewport, new Float32Array([canvas.width, canvas.height]));
+    //
+  	// // focal
+  	// const u_focal = gl.getUniformLocation(program, "focal");
+  	// gl.uniform2fv(
+  	// 	u_focal,
+  	// 	new Float32Array([camera.fx / downsample, camera.fy / downsample]),
+  	// );
+
+
+    console.log(this.tag_, "webgl initialize done.");
   }
 
   LoadPlyFromUrl(url) {
