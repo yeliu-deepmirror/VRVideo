@@ -1,48 +1,5 @@
 import * as THREE from 'three';
 
-function vertexShaderBox() {
-  return `
-    varying vec3 vUv;
-
-    void main() {
-      vUv = position;
-
-      vec4 modelViewPosition = modelViewMatrix * vec4(position, 1.0);
-      gl_Position = projectionMatrix * modelViewPosition;
-    }
-  `
-}
-
-function fragmentShaderBox() {
-return `
-    uniform vec3 colorA;
-    uniform vec3 colorB;
-    varying vec3 vUv;
-
-    void main() {
-      gl_FragColor = vec4(mix(colorA, colorB, vUv.z), 1.0);
-    }
-`
-}
-
-export function createExperimentalCube(size = 0.2) {
-  // https://dev.to/maniflames/creating-a-custom-shader-in-threejs-3bhi
-  let uniforms = {
-        colorB: {type: 'vec3', value: new THREE.Color(0xACB6E5)},
-        colorA: {type: 'vec3', value: new THREE.Color(0x74ebd5)}
-    }
-
-  let geometry = new THREE.BoxGeometry(size, size, size)
-  let material =  new THREE.ShaderMaterial({
-    uniforms: uniforms,
-    fragmentShader: fragmentShaderBox(),
-    vertexShader: vertexShaderBox(),
-  })
-
-  let mesh = new THREE.Mesh(geometry, material)
-  return mesh;
-}
-
 function vertexShaderMpi() {
   return `
     varying vec3 vUv;
@@ -66,6 +23,38 @@ return `
 `
 }
 
+export class VideoMpi {
+  tag_ = '[VideoMpi]';
+  scene_ = null;
+
+  constructor(scene) {
+    self.scene_ = scene;
+    console.log(this.tag_, "load videos");
+
+    // https://github.com/mrdoob/three.js/blob/master/examples/webgl_materials_video.html
+    // https://codepen.io/GDur/pen/eYBLeLM
+    // https://stackoverflow.com/questions/11261448/php-extract-frame-during-video-upload/36046775#36046775
+
+    var video_l = document.getElementById('video_l');
+    video_l.play();
+
+    let texture = new THREE.VideoTexture(video_l);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    const geometry = new THREE.PlaneGeometry(2, 1);
+    const material = new THREE.MeshLambertMaterial({
+      color: 0xffffff,
+      map: texture
+    });
+    const mesh = new THREE.Mesh( geometry, material );
+    mesh.position.set( 0.0, 2, -4 );
+    self.scene_.add(mesh);
+
+
+  }
+
+
+};
+
 export function createMpiPlane() {
   // https://www.npmjs.com/package/opencv-bindings
   // const cv = require('opencv-bindings');
@@ -74,8 +63,8 @@ export function createMpiPlane() {
   //     console.log(cv.getBuildInformation());
   // }, 1000);
 
-  // https://stackoverflow.com/questions/55082573/use-webgl-texture-as-a-three-js-texture-map
 
+  // https://stackoverflow.com/questions/55082573/use-webgl-texture-as-a-three-js-texture-map
   const geometry = new THREE.PlaneGeometry(2, 1);
   let material =  new THREE.ShaderMaterial({
     uniforms: {},

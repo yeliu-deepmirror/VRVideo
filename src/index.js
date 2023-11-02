@@ -68,6 +68,7 @@ function addBasicCube() {
 function init() {
 	let container = document.getElementById( 'container' );
 	stats = new Stats();
+	stats.domElement.style.cssText = 'position:absolute;top:0px;left:90%;';
 	container.appendChild( stats.dom );
 
 	console.log("Initialize the world.");
@@ -120,6 +121,10 @@ function init() {
 					MoveDolly(-1, 0, 0); break;
 				case 'd':
 					MoveDolly(1, 0, 0); break;
+				case 'q':
+					MoveDolly(0, 1, 0); break;
+				case 'e':
+					MoveDolly(0, -1, 0); break;
 				case 'ArrowLeft':
 					dolly.rotation.y += rotate_speed; break;
 				case 'ArrowRight':
@@ -133,15 +138,16 @@ function init() {
 		});
 	}
 
-	gaussian_splatting = new DM_GS.GaussianSplattingRender(scene, renderer, camera);
-	gaussian_splatting.LoadPlyFromUrl('./assets/pointcloud/jmw_night.ply');
+	let video_mpi = new DM_MPI.VideoMpi(scene);
+
+	// gaussian_splatting = new DM_GS.GaussianSplattingRender(scene, renderer, camera);
+	// gaussian_splatting.LoadPlyFromUrl('./assets/pointcloud/jmw_night.ply');
 
 	DM_UTILS.setUpRoom(scene)
 	DM_UTILS.addLighting(scene, true);
 	addBasicCube();
-	// scene.add(DM_MPI.createMpiPlane());
 
-	var mesh = DM_MPI.createExperimentalCube();
+	var mesh = DM_UTILS.createExperimentalCube();
 	mesh.position.set( 0.9, 1, -1.8 );
 	scene.add(mesh);
   scene_rotation_cubes.push(mesh);
