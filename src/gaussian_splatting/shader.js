@@ -8,16 +8,19 @@ export function vertexShader() {
     uniform mat4 projectionMatrix; // optional
 
     attribute vec3 position;
-    attribute vec4 rgba;
+    attribute vec4 color;
 
 
     varying vec4 vColor;
 
     void main() {
-      vColor = rgba;
+      vColor = color;
 
       vec4 modelViewPosition = modelViewMatrix * vec4(position, 1.0);
       gl_Position = projectionMatrix * modelViewPosition;
+
+      // gl_PointSize = 10.0;
+      gl_PointSize = 0.2 * ( 300.0 / -modelViewPosition.z );
     }
   `
 }
@@ -35,7 +38,49 @@ return `
 `
 }
 
-export function vertexShaderGS() {
+export function vertexShaderGs3d() {
+return `
+  precision mediump float;
+
+  uniform mat4 modelViewMatrix; // optional
+  uniform mat4 projectionMatrix; // optional
+
+  attribute vec3 position;
+  attribute vec4 color;
+
+  attribute vec3 offset_from_position;
+  attribute vec3 covA;
+  attribute vec3 covB;
+
+  varying vec4 vColor;
+
+  void main () {
+    vec4 modelViewPosition = modelViewMatrix * vec4(position + offset_from_position, 1.0);
+    gl_Position = projectionMatrix * modelViewPosition;
+
+    mat3 covariance = mat3(
+        covA.x, covA.y, covA.z,
+        covA.y, covB.x, covB.y,
+        covA.z, covB.y, covB.z
+    );
+    float A = -dot(offset_from_position, covariance * offset_from_position);
+    float B = exp(A) * color.a;
+    vColor = vec4(B * color.rgb, B);
+  }
+`;
+};
+
+export function fragmentShaderGs3d() {
+return `
+  precision mediump float;
+  varying vec4 vColor;
+  void main () {
+    gl_FragColor = vColor;
+  }
+`;
+};
+
+export function vertexShaderGs2d() {
 return `
   precision mediump float;
   attribute vec2 position;
@@ -114,7 +159,7 @@ return `
 `;
 };
 
-export function fragmentShaderGS() {
+export function fragmentShaderGs2d() {
 return `
 precision mediump float;
 

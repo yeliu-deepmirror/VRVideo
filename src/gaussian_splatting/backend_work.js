@@ -26,6 +26,9 @@ export function CreateWorker(self) {
 		const center = new Float32Array(3 * vertexCount);
 		const color = new Float32Array(4 * vertexCount);
 
+    const rot_mats = new Float32Array(9 * vertexCount);
+    const scales = new Float32Array(3 * vertexCount);
+
 		if (depthIndex.length == vertexCount && lastProj != null) {
 			let dot =
 				lastProj.elements[2] * viewProj.elements[2] +
@@ -103,6 +106,13 @@ export function CreateWorker(self) {
 				1.0 - 2.0 * (rot[1] * rot[1] + rot[2] * rot[2]),
 			];
 
+      for (let k = 0; k < 9; k++) {
+        rot_mats[9 * j + k] = R[k];
+      }
+      scales[3 * j + 0] = scale[0];
+      scales[3 * j + 1] = scale[1];
+      scales[3 * j + 2] = scale[2];
+
 			// Compute the matrix product of S and R (M = S * R)
 			const M = [
 				scale[0] * R[0],
@@ -124,7 +134,7 @@ export function CreateWorker(self) {
 			covB[3 * j + 2] = M[2] * M[2] + M[5] * M[5] + M[8] * M[8];
 		}
 
-		self.postMessage({ covA, center, color, covB, viewProj });
+		self.postMessage({ covA, center, color, covB, rot_mats, scales, viewProj });
 
 		console.timeEnd("sort for view");
 	};

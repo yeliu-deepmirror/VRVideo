@@ -2,6 +2,19 @@ import * as THREE from 'three';
 import {CreateWorker} from './gaussian_splatting/backend_work.js';
 import * as SHADER from './gaussian_splatting/shader.js';
 
+function RotateAndScale(rot_mats, scales, id, x, y, z, basic_scale = 2.0) {
+  let id_3 = id * 3;
+  let sx = scales[id_3] * basic_scale * x;
+  let sy = scales[id_3 + 1] * basic_scale * y;
+  let sz = scales[id_3 + 2] * basic_scale * z;
+  let id_9 = id * 9;
+  return [
+    rot_mats[id_9 + 0] * sx + rot_mats[id_9 + 3] * sy + rot_mats[id_9 + 6] * sz,
+    rot_mats[id_9 + 1] * sx + rot_mats[id_9 + 4] * sy + rot_mats[id_9 + 7] * sz,
+    rot_mats[id_9 + 2] * sx + rot_mats[id_9 + 5] * sz + rot_mats[id_9 + 8] * sz
+  ];
+}
+
 export class GaussianSplattingRender {
   tag_ = '[GaussianSplattingRender]';
   worker_ = null;
@@ -22,6 +35,7 @@ export class GaussianSplattingRender {
       ),
     );
 
+    let draw_points_only = true;
     this.worker_.onmessage = (e) => {
       if (e.data.buffer) {
         console.log(this.tag_, "[onmessage] receive buffer.");
@@ -33,87 +47,146 @@ export class GaussianSplattingRender {
         this.worker_.postMessage({ view: viewProj });
 
       } else {
-        let { covA, covB, center, color, viewProj } = e.data;
+        let { covA, covB, center, color, rot_mats, scales, viewProj } = e.data;
 
-        // https://betterprogramming.pub/point-clouds-visualization-with-three-js-5ef2a5e24587
-        var geometry = new THREE.BufferGeometry();
-        let material =  new THREE.RawShaderMaterial({
-          uniforms: {},
-          fragmentShader: SHADER.fragmentShader(),
-          vertexShader: SHADER.vertexShader()
-        });
+        if (draw_points_only) {
+          // https://betterprogramming.pub/point-clouds-visualization-with-three-js-5ef2a5e24587
+          var geometry = new THREE.BufferGeometry();
+          let material =  new THREE.RawShaderMaterial({
+            uniforms: {},
+            blending: THREE.AdditiveBlending,
+            depthWrite: false,
+            fragmentShader: SHADER.fragmentShader(),
+            vertexShader: SHADER.vertexShader()
+          });
 
-        geometry.setAttribute( 'position', new THREE.BufferAttribute( center, 3 ) );
-        geometry.setAttribute( 'rgba', new THREE.BufferAttribute( color, 4 ) );
-        // pointcloud.geometry.attributes.displacement.needsUpdate = true;
+          geometry.setAttribute( 'position', new THREE.BufferAttribute( center, 3 ) );
+          geometry.setAttribute( 'color', new THREE.BufferAttribute( color, 4 ) );
+          // pointcloud.geometry.attributes.displacement.needsUpdate = true;
 
-        var pointcloud = new THREE.Points(geometry, material);
-        this.scene_.add(pointcloud);
+          var pointcloud = new THREE.Points(geometry, material);
+          pointcloud.rotateX(Math.PI);
+          this.scene_.add(pointcloud);
+        } else {
+          let num_pts = covA.length / 3;
+          console.log(this.tag_, "process each point as a mesh", num_pts);
+
+          // each point to 5 new points, 6 faces
+          const positions = new Float32Array(num_pts * 3 * 5);
+          const colors = new Float32Array(num_pts * 4 * 5);
+          const covAs = new Float32Array(num_pts * 3 * 5);
+          const covBs = new Float32Array(num_pts * 3 * 5);
+          const offsets = new Float32Array(num_pts * 3 * 5);
+
+          // const indices = new Int32Array(num_pts * 6 * 3);
+          const indices = [];
+
+          for (let i = 0; i < num_pts; i++) {
+            let pt_id = i * 5;
+            for (let k = 0; k < 5; k++) {
+              for (let t = 0; t < 3; t++) {
+                positions[(pt_id + k) * 3 + t] = center[3 * i + t];
+                colors[(pt_id + k) * 4 + t] = color[4 * i + t];
+                covAs[(pt_id + k) * 3 + t] = covA[3 * i + t];
+                covBs[(pt_id + k) * 3 + t] = covB[3 * i + t];
+              }
+              colors[(pt_id + k) * 4 + 3] = color[4 * i + 3];
+            }
+
+            // add the offsets
+            let tmp = RotateAndScale(rot_mats, scales, i, 0.0, -1.0, 0.0);
+            offsets[pt_id * 3 + 0] = tmp[0];
+            offsets[pt_id * 3 + 1] = tmp[1];
+            offsets[pt_id * 3 + 2] = tmp[2];
+
+            tmp = RotateAndScale(rot_mats, scales, i, 0.5, -0.5, 0.0);
+            offsets[pt_id * 3 + 3] = tmp[0];
+            offsets[pt_id * 3 + 4] = tmp[1];
+            offsets[pt_id * 3 + 5] = tmp[2];
+
+            tmp = RotateAndScale(rot_mats, scales, i, -0.5, 0.5, 0.0);
+            offsets[pt_id * 3 + 6] = tmp[0];
+            offsets[pt_id * 3 + 7] = tmp[1];
+            offsets[pt_id * 3 + 8] = tmp[2];
+
+            tmp = RotateAndScale(rot_mats, scales, i, 0.0, 0.0, 1.0);
+            offsets[pt_id * 3 + 9] = tmp[0];
+            offsets[pt_id * 3 + 10] = tmp[1];
+            offsets[pt_id * 3 + 11] = tmp[2];
+
+            tmp = RotateAndScale(rot_mats, scales, i, 0.0, 0.0, -1.0);
+            offsets[pt_id * 3 + 12] = tmp[0];
+            offsets[pt_id * 3 + 13] = tmp[1];
+            offsets[pt_id * 3 + 14] = tmp[2];
+
+            // each point 6 faces
+            indices.push(pt_id + 0);
+            indices.push(pt_id + 1);
+            indices.push(pt_id + 3);
+
+            indices.push(pt_id + 0);
+            indices.push(pt_id + 4);
+            indices.push(pt_id + 1);
+
+            indices.push(pt_id + 1);
+            indices.push(pt_id + 2);
+            indices.push(pt_id + 3);
+
+            indices.push(pt_id + 1);
+            indices.push(pt_id + 4);
+            indices.push(pt_id + 2);
+
+            indices.push(pt_id + 2);
+            indices.push(pt_id + 0);
+            indices.push(pt_id + 3);
+
+            indices.push(pt_id + 2);
+            indices.push(pt_id + 4);
+            indices.push(pt_id + 0);
+          }
+
+          var geometry = new THREE.BufferGeometry();
+          geometry.setIndex( indices );
+          geometry.setAttribute( 'position', new THREE.BufferAttribute( positions, 3 ) );
+          geometry.setAttribute( 'color', new THREE.BufferAttribute( colors, 4 ) );
+          geometry.setAttribute( 'covA', new THREE.BufferAttribute( covAs, 3 ) );
+          geometry.setAttribute( 'covB', new THREE.BufferAttribute( covBs, 3 ) );
+          geometry.setAttribute( 'offset_from_position', new THREE.BufferAttribute( offsets, 3 ) );
+
+          const material =  new THREE.RawShaderMaterial({
+            uniforms: {},
+
+            // TODO: fix the blending
+            // blending: THREE.CustomBlending,
+            // blendEquation: THREE.AddEquation,
+            // blendSrc: THREE.SrcAlphaFactor,
+            // blendSrcAlpha: THREE.OneFactor,
+            // blendDst: THREE.OneMinusSrcAlphaFactor,
+
+            depthWrite: false,
+            transparent: true,
+            // wireframe: true,
+            fragmentShader: SHADER.fragmentShaderGs3d(),
+            vertexShader: SHADER.vertexShaderGs3d()
+          });
+
+          // https://github.com/antimatter15/splat/blob/main/main.js#L784
+          // blendFuncSeparate(srcRGB, dstRGB, srcAlpha, dstAlpha)
+          // gl.blendFuncSeparate(gl.ONE_MINUS_DST_ALPHA, gl.ONE, gl.ONE_MINUS_DST_ALPHA, gl.ONE);
+          // blendEquationSeparate(modeRGB, modeAlpha)
+          // gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
+
+
+          const mesh = new THREE.Mesh( geometry, material );
+          mesh.rotateX(Math.PI);
+          this.scene_.add(mesh);
+        }
+
+
         console.log(this.tag_, "[onmessage] Pointcloud Loaded.");
       }
     };
     console.log(this.tag_, "worker initialize done.");
-
-    // initialize gl things
-    // https://github.com/antimatter15/splat/blob/main/main.js#L754
-    const gl = this.renderer_.getContext();
-  	const ext = gl.getExtension("ANGLE_instanced_arrays");
-
-    const vertexShader = gl.createShader(gl.VERTEX_SHADER);
-  	gl.shaderSource(vertexShader, SHADER.vertexShaderGS());
-  	gl.compileShader(vertexShader);
-  	if (!gl.getShaderParameter(vertexShader, gl.COMPILE_STATUS))
-  		console.error(this.tag_, gl.getShaderInfoLog(vertexShader));
-
-  	const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
-  	gl.shaderSource(fragmentShader, SHADER.fragmentShaderGS());
-  	gl.compileShader(fragmentShader);
-  	if (!gl.getShaderParameter(fragmentShader, gl.COMPILE_STATUS))
-  		console.error(this.tag_, gl.getShaderInfoLog(fragmentShader));
-
-  	const program = gl.createProgram();
-  	gl.attachShader(program, vertexShader);
-  	gl.attachShader(program, fragmentShader);
-  	gl.linkProgram(program);
-  	gl.useProgram(program);
-
-    if (!gl.getProgramParameter(program, gl.LINK_STATUS))
-  		console.error(gl.getProgramInfoLog(program));
-
-  	gl.disable(gl.DEPTH_TEST); // Disable depth testing
-
-  	// Enable blending
-  	// gl.enable(gl.BLEND);
-    //
-  	// // Set blending function
-  	// gl.blendFuncSeparate(
-  	// 	gl.ONE_MINUS_DST_ALPHA,
-  	// 	gl.ONE,
-  	// 	gl.ONE_MINUS_DST_ALPHA,
-  	// 	gl.ONE,
-  	// );
-    //
-    // // Set blending equation
-  	// gl.blendEquationSeparate(gl.FUNC_ADD, gl.FUNC_ADD);
-
-  	// projection
-  	const u_projection = gl.getUniformLocation(program, "projection");
-    let projection_matrix = this.camera_.projectionMatrix.clone();
-  	gl.uniformMatrix4fv(u_projection, false, projection_matrix.elements);
-
-    // // viewport
-  	// const u_viewport = gl.getUniformLocation(program, "viewport");
-  	// gl.uniform2fv(u_viewport, new Float32Array([canvas.width, canvas.height]));
-    //
-  	// // focal
-  	// const u_focal = gl.getUniformLocation(program, "focal");
-  	// gl.uniform2fv(
-  	// 	u_focal,
-  	// 	new Float32Array([camera.fx / downsample, camera.fy / downsample]),
-  	// );
-
-
-    console.log(this.tag_, "webgl initialize done.");
   }
 
   LoadPlyFromUrl(url) {
