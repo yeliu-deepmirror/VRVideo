@@ -85,7 +85,7 @@ function init() {
 	scene.add(dolly);
 
 	/* Create the renderer object, with VR parameters enabled */
-	renderer = new THREE.WebGLRenderer({ antialias: true });
+	renderer = new THREE.WebGLRenderer({ antialias: false });
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	renderer.xr.enabled = true;
 	document.body.appendChild(VRButton.createButton(renderer));
@@ -105,7 +105,8 @@ function init() {
 	dolly.add(vr_control.controllerGrips[ 0 ], vr_control.controllers[ 0 ]);
 	dolly.add(vr_control.controllerGrips[ 1 ], vr_control.controllers[ 1 ]);
 
-	{
+	const cameraVR = renderer.xr.getCamera();
+	if (cameraVR.cameras.length == 0) {
 		window.addEventListener("keydown", (e) => {
 			if (gamepad_0 || gamepad_1) return;
 

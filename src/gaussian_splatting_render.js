@@ -10,13 +10,13 @@ function vertexShader() {
     uniform mat4 projectionMatrix; // optional
 
     attribute vec3 position;
-    attribute vec4 color;
+    attribute vec4 rgba;
 
 
     varying vec4 vColor;
 
     void main() {
-      vColor = color;
+      vColor = rgba;
 
       vec4 modelViewPosition = modelViewMatrix * vec4(position, 1.0);
       gl_Position = projectionMatrix * modelViewPosition;
@@ -73,7 +73,7 @@ export async function loadPly(scene, camera, ply_path = './assets/pointcloud/jmw
       });
 
       geometry.setAttribute( 'position', new THREE.BufferAttribute( center, 3 ) );
-      geometry.setAttribute( 'color', new THREE.BufferAttribute( color, 4 ) );
+      geometry.setAttribute( 'rgba', new THREE.BufferAttribute( color, 4 ) );
       // pointcloud.geometry.attributes.displacement.needsUpdate = true;
 
       var pointcloud = new THREE.Points(geometry, material);
