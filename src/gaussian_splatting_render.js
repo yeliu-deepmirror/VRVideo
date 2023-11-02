@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import {CreateWorker} from './gaussian_splatting/backend_work.js';
 
 // https://github.com/antimatter15/splat/blob/main/main.js
 function processPlyBuffer(inputBuffer) {
@@ -228,7 +229,7 @@ function addPointcloudWithThreejs(scene, buffer) {
   console.log("Loaded.")
 }
 
-export async function loadPly(scene, ply_path = './assets/pointcloud/jmw_night.ply') {
+export async function loadPlyPcl(scene, ply_path = './assets/pointcloud/jmw_night.ply') {
   // Load a file, set the bytes to firmware_byte_array
   console.log(ply_path)
   var fileReader = new FileReader();
@@ -236,6 +237,82 @@ export async function loadPly(scene, ply_path = './assets/pointcloud/jmw_night.p
   {
     var buffer = processPlyBuffer(e.target.result);
     addPointcloudWithThreejs(scene, buffer);
+  }
+
+  // fetch the ply file
+  fetch(ply_path)
+    .then(resp => resp.blob())
+    .then(blob => fileReader.readAsArrayBuffer(blob));
+}
+
+function getViewMatrix(camera) {
+	const R = camera.rotation.flat();
+	const t = camera.position;
+	const camToWorld = [
+		[R[0], R[1], R[2], 0],
+		[R[3], R[4], R[5], 0],
+		[R[6], R[7], R[8], 0],
+		[
+			-t[0] * R[0] - t[1] * R[3] - t[2] * R[6],
+			-t[0] * R[1] - t[1] * R[4] - t[2] * R[7],
+			-t[0] * R[2] - t[1] * R[5] - t[2] * R[8],
+			1,
+		],
+	].flat();
+	return camToWorld;
+}
+
+export async function loadPly(scene, camera, ply_path = './assets/pointcloud/jmw_night.ply') {
+  let projectionMatrix = camera.projectionMatrix.clone();
+
+  console.log(projectionMatrix);
+
+
+  const worker = new Worker(
+    URL.createObjectURL(
+      new Blob(["(", CreateWorker.toString(), ")(self)"], {
+        type: "application/javascript",
+      }),
+    ),
+  );
+
+  worker.onmessage = (e) => {
+    if (e.data.buffer) {
+      console.log("[onmessage] receive buffer.");
+
+      let viewMatrix = camera.matrixWorld;
+      const viewProj = projectionMatrix.multiply(viewMatrix);
+      console.log(viewMatrix);
+
+      worker.postMessage({ view: viewProj });
+
+    } else {
+      let { covA, covB, center, color, viewProj } = e.data;
+
+      // https://betterprogramming.pub/point-clouds-visualization-with-three-js-5ef2a5e24587
+      var geometry = new THREE.BufferGeometry();
+      let material =  new THREE.RawShaderMaterial({
+        uniforms: {},
+        fragmentShader: fragmentShader(),
+        vertexShader: vertexShader()
+      });
+
+      geometry.setAttribute( 'position', new THREE.BufferAttribute( center, 3 ) );
+      geometry.setAttribute( 'rgba', new THREE.BufferAttribute( color, 4 ) );
+      // pointcloud.geometry.attributes.displacement.needsUpdate = true;
+
+      var pointcloud = new THREE.Points(geometry, material);
+      scene.add(pointcloud);
+      console.log("[onmessage] Pointcloud Loaded.");
+    }
+  };
+
+  // Load a file, set the bytes to firmware_byte_array
+  console.log(ply_path)
+  var fileReader = new FileReader();
+  fileReader.onload = (e) =>
+  {
+    worker.postMessage({ ply: e.target.result });
   }
 
   // fetch the ply file
