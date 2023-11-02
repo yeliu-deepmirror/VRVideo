@@ -122,6 +122,10 @@ function init() {
 					dolly.rotation.y += rotate_speed; break;
 				case 'ArrowRight':
 				  dolly.rotation.y -= rotate_speed; break;
+				case 'ArrowUp':
+					dolly.rotation.x += rotate_speed; break;
+				case 'ArrowDown':
+					dolly.rotation.x -= rotate_speed; break;
 				default:
 			}
 		});
