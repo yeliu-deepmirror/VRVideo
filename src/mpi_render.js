@@ -74,6 +74,8 @@ export function createMpiPlane() {
   //     console.log(cv.getBuildInformation());
   // }, 1000);
 
+  // https://stackoverflow.com/questions/55082573/use-webgl-texture-as-a-three-js-texture-map
+
   const geometry = new THREE.PlaneGeometry(2, 1);
   let material =  new THREE.ShaderMaterial({
     uniforms: {},

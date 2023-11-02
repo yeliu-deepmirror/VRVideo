@@ -13,6 +13,7 @@ import * as DM_GS from './gaussian_splatting_render.js';
 
 window.addEventListener('load', init);
 
+let gaussian_splatting;
 let scene, camera, dolly, renderer, vr_control, stats;
 let scene_rotation_cubes = [];
 let gamepad_0, gamepad_1;
@@ -132,11 +133,13 @@ function init() {
 		});
 	}
 
+	gaussian_splatting = new DM_GS.GaussianSplattingRender(scene, renderer, camera);
+	gaussian_splatting.LoadPlyFromUrl('./assets/pointcloud/jmw_night.ply');
+
 	DM_UTILS.setUpRoom(scene)
 	DM_UTILS.addLighting(scene, true);
 	addBasicCube();
-	DM_GS.loadPly(scene, camera);
-	scene.add(DM_MPI.createMpiPlane());
+	// scene.add(DM_MPI.createMpiPlane());
 
 	var mesh = DM_MPI.createExperimentalCube();
 	mesh.position.set( 0.9, 1, -1.8 );
