@@ -1,6 +1,8 @@
 
 import { BoxLineGeometry } from 'three/examples/jsm/geometries/BoxLineGeometry.js';
 import * as THREE from 'three';
+import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
 export function addLighting(scene, add_point_light = true) {
   if (add_point_light) {
@@ -80,3 +82,45 @@ export function createExperimentalCube(size = 0.2) {
   let mesh = new THREE.Mesh(geometry, material)
   return mesh;
 }
+
+export class TextLoader {
+  group_ = null;
+  scene_ = null;
+  text_mesh_ = null;
+  font_ = null;
+  materials_ = null;
+  constructor(scene) {
+    this.group_ = new THREE.Group();
+    this.scene_ = scene;
+    scene.add(this.group_);
+
+    this.materials_ = [
+    					new THREE.MeshPhongMaterial( { color: 0xffffff, flatShading: true } ), // front
+    					new THREE.MeshPhongMaterial( { color: 0xffffff } ) // side
+    				];
+
+    let that = this;
+    const loader = new FontLoader();
+    loader.load('./assets/helvetiker_regular.typeface.json', function ( response ) {
+      that.font_ = response;
+    });
+  }
+
+  UpdateText(content) {
+    if (!this.font_) return;
+    if (this.text_mesh_) {
+      this.scene_.remove( this.text_mesh_ );
+    }
+
+    let text_geo = new TextGeometry( content, {
+      font: this.font_,
+      size: 0.1,
+  		height: 0,
+  		curveSegments: 1
+    } );
+    this.text_mesh_ = new THREE.Mesh( text_geo, this.materials_ );
+    this.text_mesh_.position.set( 0.0, 1.0, -2 );
+    this.scene_.add( this.text_mesh_ );
+  };
+
+};

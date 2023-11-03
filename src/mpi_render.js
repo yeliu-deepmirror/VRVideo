@@ -31,9 +31,10 @@ export class VideoMpi {
     self.scene_ = scene;
     console.log(this.tag_, "load videos");
 
+    // https://single-view-mpi.github.io/view.html?i=7
     // https://github.com/mrdoob/three.js/blob/master/examples/webgl_materials_video.html
-    // https://codepen.io/GDur/pen/eYBLeLM
-    // https://stackoverflow.com/questions/11261448/php-extract-frame-during-video-upload/36046775#36046775
+    // https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Pixel_manipulation_with_canvas
+    // https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Manipulating_video_using_canvas
 
     var video_l = document.getElementById('video_l');
     video_l.play();

@@ -15,11 +15,15 @@ window.addEventListener('load', init);
 
 let gaussian_splatting;
 let scene, camera, dolly, renderer, vr_control, stats;
+// let scene_left, scene_right;
 let scene_rotation_cubes = [];
 let gamepad_0, gamepad_1;
+let text_logger_;
+let camera_xr_;
 
 const move_speed = 0.1;
 const rotate_speed = 0.03;
+let camera_size = 0;
 
 function MoveDolly(x, y, z) {
 	// moving in the camera reference frame
@@ -44,7 +48,21 @@ function handleControllerRight() {
 
 function loop() {
 	stats.update();
-	renderer.render( scene, camera );
+	if (camera_xr_.cameras.length > camera_size) {
+		for (let i = 0; i < camera_xr_.cameras.length; i++) {
+			dolly.add(camera_xr_.cameras[i]);
+		}
+	}
+	camera_size = camera_xr_.cameras.length;
+	text_logger_.UpdateText('#cam_' + camera_size);
+
+	// renderer.render( scene, camera );
+	if (camera_xr_.cameras.length == 0) {
+		renderer.render( scene, camera );
+	} else {
+		renderer.render( scene, camera_xr_.cameras[0] );
+		renderer.render( scene, camera_xr_.cameras[1] );
+	}
 
 	for(let object of scene_rotation_cubes) {
 		object.rotation.x += 0.01;
@@ -76,6 +94,14 @@ function init() {
 	scene = new THREE.Scene();
 	scene.background = new THREE.Color( 0x505050 );
 
+	/* Create the renderer object, with VR parameters enabled */
+	renderer = new THREE.WebGLRenderer({ antialias: false });
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	renderer.xr.enabled = true;
+	camera_xr_ = renderer.xr.getCamera();
+	document.body.appendChild(VRButton.createButton(renderer));
+	document.body.appendChild( renderer.domElement );
+
 	/* Create the camera from which the scene will be seen */
 	camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 200 );
 	camera.position.set( 0, 1.6, 0 );
@@ -84,14 +110,10 @@ function init() {
 	// https://github.com/NikLever/Learn-WebXR/blob/6294bd4d2b0ceb82536c4ab2bb3de79bd5f8decc/start/lecture6_1/app.js#L198
 	dolly = new THREE.Object3D();
 	dolly.add(camera);
+	for (let i = 0; i < camera_xr_.cameras.length; i++) {
+		dolly.add(camera_xr_.cameras[i]);
+	}
 	scene.add(dolly);
-
-	/* Create the renderer object, with VR parameters enabled */
-	renderer = new THREE.WebGLRenderer({ antialias: false });
-	renderer.setSize( window.innerWidth, window.innerHeight );
-	renderer.xr.enabled = true;
-	document.body.appendChild(VRButton.createButton(renderer));
-	document.body.appendChild( renderer.domElement );
 
 	// create controller
 	vr_control = VRControl( renderer, camera, scene );
@@ -107,8 +129,7 @@ function init() {
 	dolly.add(vr_control.controllerGrips[ 0 ], vr_control.controllers[ 0 ]);
 	dolly.add(vr_control.controllerGrips[ 1 ], vr_control.controllers[ 1 ]);
 
-	const cameraVR = renderer.xr.getCamera();
-	if (cameraVR.cameras.length == 0) {
+	if (camera_xr_.cameras.length == 0) {
 		window.addEventListener("keydown", (e) => {
 			if (gamepad_0 || gamepad_1) return;
 
@@ -146,6 +167,8 @@ function init() {
 	DM_UTILS.setUpRoom(scene)
 	DM_UTILS.addLighting(scene, true);
 	addBasicCube();
+	text_logger_ = new DM_UTILS.TextLoader(scene);
+
 
 	var mesh = DM_UTILS.createExperimentalCube();
 	mesh.position.set( 0.9, 1, -1.8 );
