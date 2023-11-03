@@ -16,9 +16,8 @@ export function addLighting(scene, add_point_light = true) {
 }
 
 export function setUpRoom(scene) {
-  /* Create basic room mesh, and add it to the scene */
 	const room = new THREE.LineSegments(
-		new BoxLineGeometry( 6, 6, 6, 10, 10, 10 ).translate( 0, 3, 0 ),
+		new BoxLineGeometry( 12, 6, 12, 10, 10, 10 ).translate( 0, 3, 0 ),
 		new THREE.LineBasicMaterial( { color: 0x808080 } )
 	);
   scene.add( room );
@@ -38,6 +37,15 @@ export function setUpRoom(scene) {
 
   const textureCube = new THREE.CubeTextureLoader().load( urls );
   scene.background = textureCube;
+
+  // 360 skybox
+  // var geometry = new THREE.SphereGeometry( 500, 60, 40 );
+  // geometry.scale( - 1, 1, 1 );
+  // var material = new THREE.MeshBasicMaterial( {
+  //   map: new THREE.TextureLoader().load( './assets/video/room.jpg' )
+  // } );
+  // let mesh = new THREE.Mesh( geometry, material );
+  // scene.add( mesh );
 }
 
 function vertexShaderBox() {

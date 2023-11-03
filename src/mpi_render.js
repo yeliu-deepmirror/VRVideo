@@ -23,68 +23,62 @@ return `
 `
 }
 
-export class VideoMpi {
-  tag_ = '[VideoMpi]';
+// for render LR video : need to render different scene for different eyes
+export class VideoLR {
+  tag_ = '[VideoLR]';
   scene_ = null;
 
-  constructor(scene) {
+  // https://github.com/mrdoob/three.js/blob/master/examples/webgl_materials_video.html
+  // https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Pixel_manipulation_with_canvas
+  // https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Manipulating_video_using_canvas
+  constructor(scene, x = 0.0, y = 2.0, z = -4.0, width = 4.0, height = 2.0) {
     self.scene_ = scene;
     console.log(this.tag_, "load videos");
 
-    // https://single-view-mpi.github.io/view.html?i=7
-    // https://github.com/mrdoob/three.js/blob/master/examples/webgl_materials_video.html
-    // https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Tutorial/Pixel_manipulation_with_canvas
-    // https://developer.mozilla.org/en-US/docs/Web/API/Canvas_API/Manipulating_video_using_canvas
+    // <video id="video_lr" loop crossOrigin="anonymous" playsinline style="display:none" muted="muted">
+    //   <source src="./assets/video/ip_man_LR_with_audio.mp4" type='video/mp4;'>
+    // </video>
 
-    var video_l = document.getElementById('video_l');
-    video_l.play();
+    var video_lr = document.createElement('video');
+    video_lr.id = "video_lr";
+    video_lr.src = './assets/video/ip_man_LR_with_audio.mp4';
+    video_lr.type = "video/mp4";
+    video_lr.muted = "muted";
 
-    let texture = new THREE.VideoTexture(video_l);
+    // var video_lr = document.getElementById('video_lr');
+    video_lr.play();
+    let texture = new THREE.VideoTexture(video_lr);
+
     texture.colorSpace = THREE.SRGBColorSpace;
-    const geometry = new THREE.PlaneGeometry(2, 1);
     const material = new THREE.MeshLambertMaterial({
       color: 0xffffff,
       map: texture
     });
-    const mesh = new THREE.Mesh( geometry, material );
-    mesh.position.set( 0.0, 2, -4 );
-    mesh.layers.set( 1 );
 
-
-    self.scene_.add(mesh);
-
-
+    { // create left eye view
+      const geometry = new THREE.PlaneGeometry(width, height);
+      const nvs = geometry.attributes.uv.array;
+      nvs[2] = 0.5;
+      nvs[6] = 0.5;
+      const mesh = new THREE.Mesh( geometry, material );
+      mesh.position.set(x, y, z);
+      mesh.layers.set( 1 );
+      self.scene_.add(mesh);
+    }
+    { // create right eye view
+      const geometry = new THREE.PlaneGeometry(width, height);
+      const nvs = geometry.attributes.uv.array;
+      nvs[0] = 0.5;
+      nvs[4] = 0.5;
+      const mesh = new THREE.Mesh( geometry, material );
+      mesh.position.set(x, y, z);
+      mesh.layers.set( 2 );
+      self.scene_.add(mesh);
+    }
   }
-
-
 };
 
-export function createMpiPlane() {
-  // https://www.npmjs.com/package/opencv-bindings
-  // const cv = require('opencv-bindings');
-  // // set a timeout, it takes some time for opencv.js to load since it's just one massive file
-  // setTimeout(() => {
-  //     console.log(cv.getBuildInformation());
-  // }, 1000);
-
-
-  // https://stackoverflow.com/questions/55082573/use-webgl-texture-as-a-three-js-texture-map
-  const geometry = new THREE.PlaneGeometry(2, 1);
-  let material =  new THREE.ShaderMaterial({
-    uniforms: {},
-    fragmentShader: fragmentShaderMpi(),
-    vertexShader: vertexShaderMpi(),
-  });
-
-  let mesh = new THREE.Mesh( geometry, material );
-  mesh.position.set( 0.0, 2, -4 );
-  return mesh;
-}
-
-
 // for render a MPI video
+// https://single-view-mpi.github.io/view.html?i=7
 // * find a fast way to load MPI images (video or file)
 // * render MPI images
-
-
-// for render LR video : need to render different scene for different eyes
