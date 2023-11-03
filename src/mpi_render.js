@@ -48,6 +48,9 @@ export class VideoMpi {
     });
     const mesh = new THREE.Mesh( geometry, material );
     mesh.position.set( 0.0, 2, -4 );
+    mesh.layers.set( 1 );
+
+
     self.scene_.add(mesh);
 
 
