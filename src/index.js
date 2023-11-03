@@ -49,20 +49,18 @@ function handleControllerRight() {
 function loop() {
 	stats.update();
 	if (camera_xr_.cameras.length > camera_size) {
-		for (let i = 0; i < camera_xr_.cameras.length; i++) {
-			dolly.add(camera_xr_.cameras[i]);
-		}
+		// detect enter into XR mode, re-set the render layers for the camera
+		// https://stackoverflow.com/questions/34099808/how-to-make-objects-visible-to-only-one-camera-in-a-three-js-scene
+		// camera_xr_.cameras[0].layers.enable( 1 );
+		// camera_xr_.cameras[0].layers.disable( 2 );
+		//
+		// camera_xr_.cameras[1].layers.enable( 2 );
+		// camera_xr_.cameras[1].layers.disable( 1 );
 	}
 	camera_size = camera_xr_.cameras.length;
 	text_logger_.UpdateText('#cam_' + camera_size);
 
-	// renderer.render( scene, camera );
-	if (camera_xr_.cameras.length == 0) {
-		renderer.render( scene, camera );
-	} else {
-		renderer.render( scene, camera_xr_.cameras[0] );
-		renderer.render( scene, camera_xr_.cameras[1] );
-	}
+	renderer.render( scene, camera );
 
 	for(let object of scene_rotation_cubes) {
 		object.rotation.x += 0.01;
@@ -103,9 +101,10 @@ function init() {
 	document.body.appendChild( renderer.domElement );
 
 	/* Create the camera from which the scene will be seen */
-	camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 200 );
+	camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
 	camera.position.set( 0, 1.6, 0 );
-	camera.lookAt( 0, 1, -1.8 );
+	camera.lookAt( 0, 1.6, -1 );
+	camera.layers.enable(1);
 
 	// https://github.com/NikLever/Learn-WebXR/blob/6294bd4d2b0ceb82536c4ab2bb3de79bd5f8decc/start/lecture6_1/app.js#L198
 	dolly = new THREE.Object3D();
@@ -159,7 +158,7 @@ function init() {
 		});
 	}
 
-	let video_mpi = new DM_MPI.VideoMpi(scene);
+	let video_mpi = new DM_MPI.VideoLR(scene);
 
 	// gaussian_splatting = new DM_GS.GaussianSplattingRender(scene, renderer, camera);
 	// gaussian_splatting.LoadPlyFromUrl('./assets/pointcloud/jmw_night.ply');
