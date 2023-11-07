@@ -159,6 +159,7 @@ function init() {
 	}
 
 	let video_mpi = new DM_MPI.VideoLR(scene);
+	let image_mpi = new DM_MPI.ImageMPI(scene);
 
 	// gaussian_splatting = new DM_GS.GaussianSplattingRender(scene, renderer, camera);
 	// gaussian_splatting.LoadPlyFromUrl('./assets/pointcloud/jmw_night.ply');
