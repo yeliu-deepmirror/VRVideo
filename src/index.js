@@ -20,10 +20,10 @@ let scene_rotation_cubes = [];
 let gamepad_0, gamepad_1;
 let text_logger_;
 let camera_xr_;
+let image_mpi_;
 
 const move_speed = 0.1;
 const rotate_speed = 0.03;
-let camera_size = 0;
 
 function MoveDolly(x, y, z) {
 	// moving in the camera reference frame
@@ -48,17 +48,15 @@ function handleControllerRight() {
 
 function loop() {
 	stats.update();
-	if (camera_xr_.cameras.length > camera_size) {
-		// detect enter into XR mode, re-set the render layers for the camera
-		// https://stackoverflow.com/questions/34099808/how-to-make-objects-visible-to-only-one-camera-in-a-three-js-scene
-		// camera_xr_.cameras[0].layers.enable( 1 );
-		// camera_xr_.cameras[0].layers.disable( 2 );
-		//
-		// camera_xr_.cameras[1].layers.enable( 2 );
-		// camera_xr_.cameras[1].layers.disable( 1 );
+	if (camera_xr_.cameras.length == 2) {  // in XR mode
+		let world_to_left = camera_xr_.cameras[0].matrixWorld;
+		let world_to_right = camera_xr_.cameras[1].matrixWorld;
+		image_mpi_.update(world_to_left, world_to_right);
+	} else {
+		let world_to_left = camera.matrixWorld;
+		image_mpi_.update(world_to_left, null);
 	}
-	camera_size = camera_xr_.cameras.length;
-	text_logger_.UpdateText('#cam_' + camera_size);
+	text_logger_.UpdateText('#cam_' + camera_xr_.cameras.length);
 
 	renderer.render( scene, camera );
 
@@ -66,7 +64,6 @@ function loop() {
 		object.rotation.x += 0.01;
 		object.rotation.y += 0.03;
 	}
-	// requestAnimationFrame(loop);
 	handleControllerLeft();
 	handleControllerRight();
 };
@@ -102,8 +99,8 @@ function init() {
 
 	/* Create the camera from which the scene will be seen */
 	camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
-	camera.position.set( 0, 1.6, 0 );
-	camera.lookAt( 0, 1.6, -1 );
+	camera.position.set( 0, 1.2, 0 );
+	camera.lookAt( 0, 1.2, -1 );
 	camera.layers.enable(1);
 
 	// https://github.com/NikLever/Learn-WebXR/blob/6294bd4d2b0ceb82536c4ab2bb3de79bd5f8decc/start/lecture6_1/app.js#L198
@@ -159,7 +156,8 @@ function init() {
 	}
 
 	let video_mpi = new DM_MPI.VideoLR(scene);
-	let image_mpi = new DM_MPI.ImageMPI(scene);
+	// let image_layers_mpi = new DM_MPI.ImageLayersMPI(scene);
+	image_mpi_ = new DM_MPI.ImageMPI(scene, camera);
 
 	// gaussian_splatting = new DM_GS.GaussianSplattingRender(scene, renderer, camera);
 	// gaussian_splatting.LoadPlyFromUrl('./assets/pointcloud/jmw_night.ply');
@@ -168,7 +166,6 @@ function init() {
 	DM_UTILS.addLighting(scene, true);
 	addBasicCube();
 	text_logger_ = new DM_UTILS.TextLoader(scene);
-
 
 	var mesh = DM_UTILS.createExperimentalCube();
 	mesh.position.set( 0.9, 1, -1.8 );
