@@ -127,7 +127,7 @@ export class TextLoader {
   		curveSegments: 1
     } );
     this.text_mesh_ = new THREE.Mesh( text_geo, this.materials_ );
-    this.text_mesh_.position.set( 0.0, 1.0, -2 );
+    this.text_mesh_.position.set( 0.0, 1.0, -1.5 );
     this.scene_.add( this.text_mesh_ );
   };
 

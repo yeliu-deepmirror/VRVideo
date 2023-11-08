@@ -57,7 +57,7 @@ export class VideoLR {
 };
 
 
-function vertexShaderMpi() {
+function vertexShaderMpiLayers() {
   return `
     precision mediump float;
     uniform mat4 modelViewMatrix;
@@ -75,7 +75,7 @@ function vertexShaderMpi() {
   `
 }
 
-function fragmentShaderMpi() {
+function fragmentShaderMpiLayers() {
   return `
     precision mediump float;
     varying vec2 vUv;
@@ -115,11 +115,11 @@ function ComputeMpiDepth(layer_id) {
 // https://single-view-mpi.github.io/view.html?i=7
 // * find a fast way to load MPI images (video or file)
 // * render MPI images
-export class ImageMPI {
-  tag_ = '[ImageMPI]';
+export class ImageLayersMPI {
+  tag_ = '[ImageLayersMPI]';
   scene_ = null;
 
-  constructor(scene, x = 0.0, y = 1.6, z = -2.0, width = 1.0, height = 0.5) {
+  constructor(scene, x = 0.0, y = 2.0, z = -2.0, width = 1.0, height = 0.5) {
     self.scene_ = scene;
     // console.log(this.tag_, "load MPI image");
 
@@ -155,8 +155,8 @@ export class ImageMPI {
           blendDstAlpha: THREE.OneFactor,
           transparent: true,
           depthWrite: true,
-          fragmentShader: fragmentShaderMpi(),
-          vertexShader: vertexShaderMpi()
+          fragmentShader: fragmentShaderMpiLayers(),
+          vertexShader: vertexShaderMpiLayers()
         });
 
         const geometry = new THREE.PlaneGeometry(width, height);
@@ -167,5 +167,214 @@ export class ImageMPI {
       }
     }
     console.log(this.tag_, "load MPI image", cnt);
+  }
+};
+
+function vertexShaderMpi() {
+  return `
+    precision mediump float;
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+    uniform mat3 homographyMatrix;
+
+    attribute vec3 position;
+    attribute vec2 uv;
+
+    varying vec2 vUv;
+
+    void main() {
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+
+      vec3 coord = homographyMatrix * vec3(uv.x, 1.0 - uv.y, 1.0);
+      vUv = vec2(coord.x, 1.0 - coord.y);
+    }
+  `
+}
+
+function fragmentShaderMpi() {
+  return `
+    precision mediump float;
+    varying vec2 vUv;
+    uniform sampler2D texture_rgbs;
+    uniform sampler2D texture_alphas;
+    uniform vec2 texture_origin;
+    uniform vec2 texture_scale;
+
+    void main() {
+      // check if the pixel outside the block
+      if (vUv.x < 0.0) discard;
+      if (vUv.y < 0.0) discard;
+      if (vUv.x > 1.0) discard;
+      if (vUv.y > 1.0) discard;
+
+      // process to get correct texture value
+      vec2 uv_offset = vec2(
+          vUv.x * texture_scale.x + texture_origin.x,
+          vUv.y * texture_scale.y + texture_origin.y);
+
+      gl_FragColor.rgb = texture2D(texture_rgbs, uv_offset).rgb;
+      // rgb in alpha images are the same, pick any one
+      gl_FragColor.a = texture2D(texture_alphas, uv_offset).r;
+
+      // bgr to rgb
+      float x = gl_FragColor.x;
+      gl_FragColor.x = gl_FragColor.z;
+      gl_FragColor.z = x;
+    }
+`
+}
+
+function get_camera_to_group(w2g, w2c) {
+  let camera_pose = w2c.invert();
+  let cam_x = camera_pose.elements[12];
+  let cam_y = camera_pose.elements[13];
+  let cam_z = camera_pose.elements[14];
+
+  let x = w2g.elements[0] * cam_x + w2g.elements[4] * cam_y + w2g.elements[8] * cam_z + w2g.elements[12];
+  let y = w2g.elements[1] * cam_x + w2g.elements[5] * cam_y + w2g.elements[9] * cam_z + w2g.elements[13];
+  let z = w2g.elements[2] * cam_x + w2g.elements[6] * cam_y + w2g.elements[10] * cam_z + w2g.elements[14];
+  return new THREE.Vector3(x, y, z);
+}
+
+// render MPI for different cameras
+export class ImageMPI {
+  tag_ = '[ImageMPI]';
+  scene_ = null;
+  camera_ = null;
+  mesh_group_ = null;
+  homo_scale_ = 0.2;
+
+  depths_ = [];
+  materials_left_ = [];
+  materials_right_ = [];
+
+  update(world_to_left, world_to_right) {
+    // update material homography by camera
+    let left_to_group = get_camera_to_group(this.mesh_group_.matrixWorld, world_to_left);
+    let right_to_group = null;
+    if (world_to_right != null) {
+      right_to_group = get_camera_to_group(this.mesh_group_.matrixWorld, world_to_right);
+    }
+
+    for (let i = 0; i < this.materials_left_.length; i++) {
+      let homography_left = this.compute_homograph(left_to_group, 1.0 / this.depths_[i]);
+      this.materials_left_[i].uniforms.homographyMatrix.value = homography_left;
+      if (right_to_group != null) {
+        let homography_right = this.compute_homograph(right_to_group, 1.0 / this.depths_[i]);
+        this.materials_right_[i].uniforms.homographyMatrix.value = homography_right;
+      }
+    }
+  }
+
+  compute_homograph(camera_to_group, depth_inv) {
+    let px = this.homo_scale_ * camera_to_group.x;
+    let py = this.homo_scale_ * camera_to_group.y;
+    let pz = this.homo_scale_ * camera_to_group.z;
+    let nx = 0;
+    let ny = 0;
+    let nz = 1;
+
+    let homography = new THREE.Matrix3();
+    homography.set(
+      1 + depth_inv * px * nx, depth_inv * px * ny, depth_inv * px * nz,
+      depth_inv * py * nx, 1 + depth_inv * py * ny, depth_inv * py * nz,
+      depth_inv * pz * nx, depth_inv * pz * ny, 1 + depth_inv * pz * nz);
+    return homography;
+  }
+
+  constructor(scene, camera, x = 0.0, y = 1.2, z = -2.0, width = 1.0, height = 0.5) {
+    this.scene_ = scene;
+    this.camera_ = camera;
+    this.mesh_group_ = new THREE.Group();
+    this.mesh_group_.position.set(x, y, z);
+    console.log(this.tag_, "load MPI image");
+
+    const texture_rgbs = new THREE.TextureLoader().load('./assets/images/mpi/rgbs.jpg' );
+    const texture_alphas = new THREE.TextureLoader().load('./assets/images/mpi/alphas.jpg' );
+
+    let texture_scale = new THREE.Vector2( 1.0/8.0, 1.0/4.0 );
+
+    let homography = new THREE.Matrix3();
+    homography.set(1, 0, 0, 0, 1, 0, 0, 0, 1 );  // set in row-major, while saved in col-major
+
+    let cnt = 0;
+
+    const front_disparity = 1.0;
+    const back_disparity = 1.0 / 100.0;
+    const interval = (front_disparity - back_disparity) / 32;
+
+    // add to scene from far to close, to let it render in this order
+    for (let i = 0; i < 8; i++) {
+      for (let j = 3; j >= 0; j--) {
+        // add very small offset to keep the layers separate (while not visible)
+        let layer_id = i + 8 * (3 - j);
+        let depth_offset = -0.001 * layer_id;
+        let depth = 1.0 / (back_disparity + layer_id * interval);
+        this.depths_.push(depth)
+
+        // far to close
+        let offset = new THREE.Vector2( i/8, j/4 );
+
+        {   // add left eye
+          let material_mpi = new THREE.RawShaderMaterial({
+            uniforms: {
+              texture_rgbs: { type: "t", value: texture_rgbs },
+              texture_alphas: { type: "t", value: texture_alphas },
+              texture_origin: { type: "v2", value: offset },
+              texture_scale: { type: "v2", value: texture_scale },
+              homographyMatrix: { type: "m3", value: homography }
+            },
+            blending: THREE.CustomBlending,
+            blendEquation: THREE.AddEquation,
+            blendSrc: THREE.SrcAlphaFactor,
+            blendSrcAlpha: THREE.OneFactor,
+            blendDst: THREE.OneMinusSrcAlphaFactor,
+            blendDstAlpha: THREE.OneFactor,
+            transparent: true,
+            depthWrite: true,
+            fragmentShader: fragmentShaderMpi(),
+            vertexShader: vertexShaderMpi()
+          });
+
+          this.materials_left_.push(material_mpi);
+          const geometry = new THREE.PlaneGeometry(width, height);
+          const mesh = new THREE.Mesh( geometry, material_mpi );
+          mesh.layers.set( 1 );
+          mesh.position.set(0, 0, 0 - depth_offset);
+          this.mesh_group_.add(mesh);
+        }
+        {   // add right eye
+          let material_mpi = new THREE.RawShaderMaterial({
+            uniforms: {
+              texture_rgbs: { type: "t", value: texture_rgbs },
+              texture_alphas: { type: "t", value: texture_alphas },
+              texture_origin: { type: "v2", value: offset },
+              texture_scale: { type: "v2", value: texture_scale },
+              homographyMatrix: { type: "m3", value: homography }
+            },
+            blending: THREE.CustomBlending,
+            blendEquation: THREE.AddEquation,
+            blendSrc: THREE.SrcAlphaFactor,
+            blendSrcAlpha: THREE.OneFactor,
+            blendDst: THREE.OneMinusSrcAlphaFactor,
+            blendDstAlpha: THREE.OneFactor,
+            transparent: true,
+            depthWrite: true,
+            fragmentShader: fragmentShaderMpi(),
+            vertexShader: vertexShaderMpi()
+          });
+
+          this.materials_right_.push(material_mpi);
+          const geometry = new THREE.PlaneGeometry(width, height);
+          const mesh = new THREE.Mesh( geometry, material_mpi );
+          mesh.layers.set( 2 );
+          mesh.position.set(0, 0, 0 - depth_offset);
+          this.mesh_group_.add(mesh);
+        }
+        cnt++;
+      }
+    }
+    this.scene_.add(this.mesh_group_);
+    console.log(this.tag_, "loaded MPI image", cnt);
   }
 };
