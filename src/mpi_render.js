@@ -199,6 +199,8 @@ function fragmentShaderMpi() {
     uniform sampler2D texture_alphas;
     uniform vec2 texture_origin;
     uniform vec2 texture_scale;
+    uniform vec2 texture_origin_alpha;
+    uniform vec2 texture_scale_alpha;
 
     void main() {
       // check if the pixel outside the block
@@ -211,10 +213,13 @@ function fragmentShaderMpi() {
       vec2 uv_offset = vec2(
           vUv.x * texture_scale.x + texture_origin.x,
           vUv.y * texture_scale.y + texture_origin.y);
+      vec2 uv_offset_alpha = vec2(
+          vUv.x * texture_scale_alpha.x + texture_origin_alpha.x,
+          vUv.y * texture_scale_alpha.y + texture_origin_alpha.y);
 
       gl_FragColor.rgb = texture2D(texture_rgbs, uv_offset).rgb;
       // rgb in alpha images are the same, pick any one
-      gl_FragColor.a = texture2D(texture_alphas, uv_offset).r;
+      gl_FragColor.a = texture2D(texture_alphas, uv_offset_alpha).r;
 
       // bgr to rgb
       float x = gl_FragColor.x;
@@ -289,10 +294,70 @@ export class ImageMPI {
     this.mesh_group_.position.set(x, y, z);
     console.log(this.tag_, "load MPI image");
 
-    const texture_rgbs = new THREE.TextureLoader().load('./assets/images/mpi/rgbs.jpg' );
-    const texture_alphas = new THREE.TextureLoader().load('./assets/images/mpi/alphas.jpg' );
+    var video_l = document.createElement('video');
+    {
+      video_l.id = "video_l";
+      video_l.src = './assets/video/cv_mpi_rgb_l_h264.mp4';
+      video_l.type = "video/mp4";
+      video_l.muted = "muted";
+      video_l.loop = true;
+    }
+    var video_r = document.createElement('video');
+    {
+      video_r.id = "video_r";
+      video_r.src = './assets/video/cv_mpi_rgb_r_h264.mp4';
+      video_r.type = "video/mp4";
+      video_r.muted = "muted";
+      video_r.loop = true;
+    }
+    var video_a = document.createElement('video');
+    {
+      video_a.id = "video_a";
+      video_a.src = './assets/video/cv_mpi_alpha_h264.mp4';
+      video_a.type = "video/mp4";
+      video_a.muted = "muted";
+      video_a.loop = true;
+    }
+    // video_l.play();
+    // video_r.play();
+    // video_a.play();
 
-    let texture_scale = new THREE.Vector2( 1.0/8.0, 1.0/4.0 );
+    {
+      // Get all videos.
+      var videos = [video_l, video_r, video_a];
+
+      // Create a promise to wait all videos to be loaded at the same time.
+      // When all of the videos are ready, call resolve().
+      var promise = new Promise(function(resolve) {
+        var loaded = 0;
+        videos.forEach(function(v) {
+          v.addEventListener('loadedmetadata', function() {
+            loaded++;
+            if (loaded === videos.length) resolve();
+          });
+        });
+      });
+
+      // Play all videos one by one only when all videos are ready to be played.
+      promise.then(function() {
+        videos.forEach(function(v) {
+          v.play();
+        });
+      });
+    }
+
+    let texture_l = new THREE.VideoTexture(video_l);
+    let texture_r = new THREE.VideoTexture(video_r);
+    let texture_alphas = new THREE.VideoTexture(video_a);
+    texture_l.colorSpace = THREE.SRGBColorSpace;
+    texture_r.colorSpace = THREE.SRGBColorSpace;
+    texture_alphas.colorSpace = THREE.SRGBColorSpace;
+
+    // const texture_rgbs = new THREE.TextureLoader().load('./assets/images/mpi/rgbs.jpg' );
+    // const texture_alphas = new THREE.TextureLoader().load('./assets/images/mpi/alphas.jpg' );
+
+    let texture_scale = new THREE.Vector2( 1.0/4.0, 1.0/4.0 );
+    let texture_scale_alpha = new THREE.Vector2( 1.0/8.0, 1.0/4.0 );
 
     let homography = new THREE.Matrix3();
     homography.set(1, 0, 0, 0, 1, 0, 0, 0, 1 );  // set in row-major, while saved in col-major
@@ -313,17 +378,32 @@ export class ImageMPI {
         this.depths_.push(depth)
 
         // far to close
-        let offset = new THREE.Vector2( i/8, j/4 );
+        let offset_alpha = new THREE.Vector2( i/8, j/4 );
+        let offset;
+        if (i < 4) {
+          offset = new THREE.Vector2( i/4, j/4 );
+        } else {
+          offset = new THREE.Vector2( (i - 4)/4, j/4 );
+        }
+
+        let uniforms = {
+          texture_alphas: { type: "t", value: texture_alphas },
+          texture_origin: { type: "v2", value: offset },
+          texture_scale_alpha: { type: "v2", value: texture_scale_alpha },
+          texture_origin_alpha: { type: "v2", value: offset_alpha },
+          texture_scale: { type: "v2", value: texture_scale },
+          homographyMatrix: { type: "m3", value: homography }
+        };
+
+        if (i < 4) {
+          uniforms.texture_rgbs = { type: "t", value: texture_l };
+        } else {
+          uniforms.texture_rgbs = { type: "t", value: texture_r };
+        }
 
         {   // add left eye
           let material_mpi = new THREE.RawShaderMaterial({
-            uniforms: {
-              texture_rgbs: { type: "t", value: texture_rgbs },
-              texture_alphas: { type: "t", value: texture_alphas },
-              texture_origin: { type: "v2", value: offset },
-              texture_scale: { type: "v2", value: texture_scale },
-              homographyMatrix: { type: "m3", value: homography }
-            },
+            uniforms: uniforms,
             blending: THREE.CustomBlending,
             blendEquation: THREE.AddEquation,
             blendSrc: THREE.SrcAlphaFactor,
@@ -345,13 +425,7 @@ export class ImageMPI {
         }
         {   // add right eye
           let material_mpi = new THREE.RawShaderMaterial({
-            uniforms: {
-              texture_rgbs: { type: "t", value: texture_rgbs },
-              texture_alphas: { type: "t", value: texture_alphas },
-              texture_origin: { type: "v2", value: offset },
-              texture_scale: { type: "v2", value: texture_scale },
-              homographyMatrix: { type: "m3", value: homography }
-            },
+            uniforms: uniforms,
             blending: THREE.CustomBlending,
             blendEquation: THREE.AddEquation,
             blendSrc: THREE.SrcAlphaFactor,
