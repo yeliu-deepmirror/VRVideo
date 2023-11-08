@@ -89,7 +89,7 @@ function fragmentShaderMpi() {
           vUv.x * texture_scale.x + texture_origin.x,
           vUv.y * texture_scale.y + texture_origin.y);
 
-      gl_FragColor = texture2D(texture_rgbs, uv_offset);
+      gl_FragColor.rgb = texture2D(texture_rgbs, uv_offset).rgb;
       // rgb in alpha images are the same, pick any one
       gl_FragColor.a = texture2D(texture_alphas, uv_offset).r;
 
