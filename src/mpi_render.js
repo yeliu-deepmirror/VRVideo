@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { TimingObject } from 'timing-object';
+import { setTimingsrc } from 'timingsrc';
 
 
 // for render LR video : need to render different scene for different eyes
@@ -133,7 +135,7 @@ export class ImageLayersMPI {
     for (let i = 0; i < 8; i++) {
       for (let j = 3; j >= 0; j--) {
         let layer_id = i + 8 * (3 - j);
-        let depth_offset = 1.0 / (layer_id + 1);
+        let depth_offset = 2.0 / (layer_id + 1);
 
         // far to close
         let offset = new THREE.Vector2( i/8, j/4 );
@@ -249,6 +251,7 @@ export class ImageMPI {
   mesh_group_ = null;
   homo_scale_ = 0.2;
 
+  videos_ = [];
   depths_ = [];
   materials_left_ = [];
   materials_right_ = [];
@@ -269,6 +272,15 @@ export class ImageMPI {
         this.materials_right_[i].uniforms.homographyMatrix.value = homography_right;
       }
     }
+
+    console.log(this.tag_, this.videos_[0].currentTime, this.videos_[1].currentTime, this.videos_[2].currentTime);
+  }
+
+  set_video(video) {
+    video.type = "video/mp4";
+    video.muted = "muted";
+    video.loop = true;
+    video.autoplay = false;
   }
 
   compute_homograph(camera_to_group, depth_inv) {
@@ -298,53 +310,36 @@ export class ImageMPI {
     {
       video_l.id = "video_l";
       video_l.src = './assets/video/cv_mpi_rgb_l_h264.mp4';
-      video_l.type = "video/mp4";
-      video_l.muted = "muted";
-      video_l.loop = true;
+      this.set_video(video_l);
     }
     var video_r = document.createElement('video');
     {
       video_r.id = "video_r";
       video_r.src = './assets/video/cv_mpi_rgb_r_h264.mp4';
-      video_r.type = "video/mp4";
-      video_r.muted = "muted";
-      video_r.loop = true;
+      this.set_video(video_r);
     }
     var video_a = document.createElement('video');
     {
       video_a.id = "video_a";
       video_a.src = './assets/video/cv_mpi_alpha_h264.mp4';
-      video_a.type = "video/mp4";
-      video_a.muted = "muted";
-      video_a.loop = true;
+      this.set_video(video_a);
     }
-    // video_l.play();
-    // video_r.play();
-    // video_a.play();
+    video_l.play();
+    video_r.play();
+    video_a.play();
+    this.videos_ = [video_a, video_l, video_r];
 
-    {
-      // Get all videos.
-      var videos = [video_l, video_r, video_a];
+    // https://github.com/chrisguttandin/video-synchronization-demo/blob/master/src/scripts/app.js
+    const timingObject = new TimingObject();
+    timingObject.addEventListener('readystatechange', () => {
+        if (timingObject.readyState === 'open') {
+            timingObject.update({ position: 0, velocity: 1 });
+            setTimingsrc(video_l, timingObject);
+            setTimingsrc(video_r, timingObject);
+            setTimingsrc(video_a, timingObject);
+        }
+    });
 
-      // Create a promise to wait all videos to be loaded at the same time.
-      // When all of the videos are ready, call resolve().
-      var promise = new Promise(function(resolve) {
-        var loaded = 0;
-        videos.forEach(function(v) {
-          v.addEventListener('loadedmetadata', function() {
-            loaded++;
-            if (loaded === videos.length) resolve();
-          });
-        });
-      });
-
-      // Play all videos one by one only when all videos are ready to be played.
-      promise.then(function() {
-        videos.forEach(function(v) {
-          v.play();
-        });
-      });
-    }
 
     let texture_l = new THREE.VideoTexture(video_l);
     let texture_r = new THREE.VideoTexture(video_r);

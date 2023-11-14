@@ -51,10 +51,10 @@ function loop() {
 	if (camera_xr_.cameras.length == 2) {  // in XR mode
 		let world_to_left = camera_xr_.cameras[0].matrixWorld;
 		let world_to_right = camera_xr_.cameras[1].matrixWorld;
-		image_mpi_.update(world_to_left, world_to_right);
+		if (image_mpi_ != null) image_mpi_.update(world_to_left, world_to_right);
 	} else {
 		let world_to_left = camera.matrixWorld;
-		image_mpi_.update(world_to_left, null);
+		if (image_mpi_ != null) image_mpi_.update(world_to_left, null);
 	}
 	text_logger_.UpdateText('#cam_' + camera_xr_.cameras.length);
 
@@ -155,7 +155,7 @@ function init() {
 		});
 	}
 
-	let video_mpi = new DM_MPI.VideoLR(scene);
+	// let video_lr = new DM_MPI.VideoLR(scene);
 	// let image_layers_mpi = new DM_MPI.ImageLayersMPI(scene);
 	image_mpi_ = new DM_MPI.ImageMPI(scene, camera);
 
