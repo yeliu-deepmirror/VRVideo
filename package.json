@@ -11,7 +11,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "three": "^0.148.0"
+    "three": "^0.148.0",
+    "timingsrc": "^1.4.10"
   },
   "devDependencies": {
     "html-webpack-plugin": "^4.3.0",
