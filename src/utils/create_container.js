@@ -122,7 +122,7 @@ export class TextLoader {
 
     let text_geo = new TextGeometry( content, {
       font: this.font_,
-      size: 0.1,
+      size: 0.05,
   		height: 0,
   		curveSegments: 1
     } );

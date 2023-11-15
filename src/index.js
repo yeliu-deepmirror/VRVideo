@@ -9,6 +9,7 @@ import VRControl from './utils/VRControl.js';
 // import ThreeMeshUI from 'three-mesh-ui';
 import * as DM_UTILS from './utils/create_container.js';
 import * as DM_MPI from './mpi_render.js';
+import * as DM_VIDEO_MPI from './mpi_render_video.js';
 import * as DM_GS from './gaussian_splatting/gaussian_splatting_render.js';
 
 window.addEventListener('load', init);
@@ -49,14 +50,42 @@ function handleControllerRight() {
 function loop() {
 	stats.update();
 	if (camera_xr_.cameras.length == 2) {  // in XR mode
-		let world_to_left = camera_xr_.cameras[0].matrixWorld;
-		let world_to_right = camera_xr_.cameras[1].matrixWorld;
+		// the definition is different
+		let world_to_left = camera_xr_.cameras[0].matrixWorld.clone().invert();
+		let world_to_right = camera_xr_.cameras[1].matrixWorld.clone().invert();
 		if (image_mpi_ != null) image_mpi_.update(world_to_left, world_to_right);
 	} else {
 		let world_to_left = camera.matrixWorld;
 		if (image_mpi_ != null) image_mpi_.update(world_to_left, null);
 	}
-	text_logger_.UpdateText('#cam_' + camera_xr_.cameras.length);
+
+	if (image_mpi_.mesh_group_ != null) {
+		let message = '#cam_' + camera_xr_.cameras.length;
+		if (image_mpi_.left_to_group_) {
+			message += "\n left:" + image_mpi_.left_to_group_.x.toFixed(2) + "," + image_mpi_.left_to_group_.y.toFixed(2) + "," + image_mpi_.left_to_group_.z.toFixed(2);
+		}
+		if (image_mpi_.right_to_group_) {
+			message += "\n right:" + image_mpi_.right_to_group_.x.toFixed(2) + "," + image_mpi_.right_to_group_.y.toFixed(2) + "," + image_mpi_.right_to_group_.z.toFixed(2);
+		}
+		if (camera_xr_.cameras.length == 2) {  // in XR mode
+			// log camera_to_left and camera_to_right
+			let world_to_group = image_mpi_.mesh_group_.matrixWorld.clone();
+			let group_to_world = world_to_group.invert();
+			message += "\n group_to_world:" + group_to_world.elements[12].toFixed(2) + "," + group_to_world.elements[13].toFixed(2) + "," + group_to_world.elements[14].toFixed(2);
+
+			let left_to_world = camera_xr_.cameras[0].matrixWorld.clone();
+			let right_to_world = camera_xr_.cameras[1].matrixWorld.clone();
+			message += "\n left_to_world:" + left_to_world.elements[12].toFixed(2) + "," + left_to_world.elements[13].toFixed(2) + "," + left_to_world.elements[14].toFixed(2);
+			message += "\n right_to_world:" + right_to_world.elements[12].toFixed(2) + "," + right_to_world.elements[13].toFixed(2) + "," + right_to_world.elements[14].toFixed(2);
+			//
+			// let left_to_group = DM_VIDEO_MPI.get_camera_to_group(world_to_group, left_to_world);
+			// let right_to_group = DM_VIDEO_MPI.get_camera_to_group(world_to_group, right_to_world);
+			//
+			// message += "\n left_to_group:" + left_to_group.x.toFixed(2) + "," + left_to_group.y.toFixed(2) + "," + left_to_group.z.toFixed(2);
+			// message += "\n right_to_group:" + right_to_group.x.toFixed(2) + "," + right_to_group.y.toFixed(2) + "," + right_to_group.z.toFixed(2);
+		}
+		text_logger_.UpdateText(message);
+	}
 
 	renderer.render( scene, camera );
 
@@ -157,7 +186,8 @@ function init() {
 
 	// let video_lr = new DM_MPI.VideoLR(scene);
 	// let image_layers_mpi = new DM_MPI.ImageLayersMPI(scene);
-	image_mpi_ = new DM_MPI.ImageMPI(scene, camera);
+	image_mpi_ = new DM_VIDEO_MPI.VideoMPI(scene, camera);
+	// image_mpi_ = new DM_MPI.ImageMPI(scene, camera);
 
 	// gaussian_splatting = new DM_GS.GaussianSplattingRender(scene, renderer, camera);
 	// gaussian_splatting.LoadPlyFromUrl('./assets/pointcloud/jmw_night.ply');
