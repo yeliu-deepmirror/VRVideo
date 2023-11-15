@@ -86,12 +86,13 @@ export class VideoMPI {
   right_to_group_ = null;
   update(world_to_left, world_to_right) {
     // update material homography by camera
-    let left_to_group = get_camera_to_group(this.mesh_group_.matrixWorld, world_to_left);
+    let w2g = this.mesh_group_.matrixWorld.invert();
+    let left_to_group = get_camera_to_group(w2g, world_to_left);
     this.left_to_group_ = left_to_group;
     let right_to_group = null;
     if (world_to_right != null) {
       this.right_to_group_ = right_to_group;
-      right_to_group = get_camera_to_group(this.mesh_group_.matrixWorld, world_to_right);
+      right_to_group = get_camera_to_group(w2g, world_to_right);
     }
 
     for (let i = 0; i < this.materials_left_.length; i++) {
@@ -130,7 +131,7 @@ export class VideoMPI {
     var video_lra = document.createElement('video');
     {
       video_lra.id = "video_lra";
-      video_lra.src = './assets/video/mpi_video.mp4';
+      video_lra.src = './assets/video/mpi_video_h264.mp4';
       video_lra.type = "video/mp4";
       video_lra.muted = "muted";
       video_lra.loop = true;
