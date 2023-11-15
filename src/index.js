@@ -9,6 +9,7 @@ import VRControl from './utils/VRControl.js';
 // import ThreeMeshUI from 'three-mesh-ui';
 import * as DM_UTILS from './utils/create_container.js';
 import * as DM_MPI from './mpi_render.js';
+import * as DM_VIDEO_MPI from './mpi_render_video.js';
 import * as DM_GS from './gaussian_splatting/gaussian_splatting_render.js';
 
 window.addEventListener('load', init);
@@ -49,14 +50,19 @@ function handleControllerRight() {
 function loop() {
 	stats.update();
 	if (camera_xr_.cameras.length == 2) {  // in XR mode
-		let world_to_left = camera_xr_.cameras[0].matrixWorld;
-		let world_to_right = camera_xr_.cameras[1].matrixWorld;
+		// the definition is different
+		let world_to_left = camera_xr_.cameras[0].matrixWorld.clone().invert();
+		let world_to_right = camera_xr_.cameras[1].matrixWorld.clone().invert();
 		if (image_mpi_ != null) image_mpi_.update(world_to_left, world_to_right);
 	} else {
 		let world_to_left = camera.matrixWorld;
 		if (image_mpi_ != null) image_mpi_.update(world_to_left, null);
 	}
-	text_logger_.UpdateText('#cam_' + camera_xr_.cameras.length);
+
+  {
+		let message = '#cam_' + camera_xr_.cameras.length;
+		text_logger_.UpdateText(message);
+	}
 
 	renderer.render( scene, camera );
 
@@ -157,6 +163,7 @@ function init() {
 
 	// let video_lr = new DM_MPI.VideoLR(scene);
 	// let image_layers_mpi = new DM_MPI.ImageLayersMPI(scene);
+	// image_mpi_ = new DM_VIDEO_MPI.VideoMPI(scene, camera);
 	image_mpi_ = new DM_MPI.ImageMPI(scene, camera);
 
 	// gaussian_splatting = new DM_GS.GaussianSplattingRender(scene, renderer, camera);

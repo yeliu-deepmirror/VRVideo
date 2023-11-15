@@ -258,10 +258,11 @@ export class ImageMPI {
 
   update(world_to_left, world_to_right) {
     // update material homography by camera
-    let left_to_group = get_camera_to_group(this.mesh_group_.matrixWorld, world_to_left);
+    let w2g = this.mesh_group_.matrixWorld.invert();
+    let left_to_group = get_camera_to_group(w2g, world_to_left);
     let right_to_group = null;
     if (world_to_right != null) {
-      right_to_group = get_camera_to_group(this.mesh_group_.matrixWorld, world_to_right);
+      right_to_group = get_camera_to_group(w2g, world_to_right);
     }
 
     for (let i = 0; i < this.materials_left_.length; i++) {
