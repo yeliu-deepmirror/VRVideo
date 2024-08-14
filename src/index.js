@@ -4,24 +4,20 @@
 import * as THREE from 'three';
 import { VRButton } from 'three/examples/jsm/webxr/VRButton.js';
 import Stats from 'three/addons/libs/stats.module.js';
-import VRControl from './utils/VRControl.js';
+import VRControl from '../src/utils/VRControl.js';
+import DmWs from '../src/utils/web_socket.js';
 
 // import ThreeMeshUI from 'three-mesh-ui';
-import * as DM_UTILS from './utils/create_container.js';
-import * as DM_MPI from './mpi_render.js';
-import * as DM_VIDEO_MPI from './mpi_render_video.js';
-import * as DM_GS from './gaussian_splatting/gaussian_splatting_render.js';
+import * as DM_UTILS from '../src/utils/create_container.js';
 
 window.addEventListener('load', init);
 
-let gaussian_splatting;
+let dm_ws_;
 let scene, camera, dolly, renderer, vr_control, stats;
-// let scene_left, scene_right;
 let scene_rotation_cubes = [];
 let gamepad_0, gamepad_1;
 let text_logger_;
 let camera_xr_;
-let image_mpi_;
 
 const move_speed = 0.1;
 const rotate_speed = 0.03;
@@ -37,32 +33,12 @@ function MoveDolly(x, y, z) {
 	dolly.position.z += movement.z;
 }
 
-// https://github.com/mattvr/vr-art-gallery/blob/897274d4f2848fa944d78f09c53b8a0c42f34039/src_app/app.ts#L80
-function handleControllerLeft() {
-	if (!gamepad_0) return;
-	MoveDolly(gamepad_0.axes[2], 0, gamepad_0.axes[3]);
-}
-function handleControllerRight() {
-	if (!gamepad_1) return;
-	dolly.rotation.y -= gamepad_1.axes[2] * rotate_speed;
-}
-
 function loop() {
 	stats.update();
-	if (camera_xr_.cameras.length == 2) {  // in XR mode
-		// the definition is different
-		let world_to_left = camera_xr_.cameras[0].matrixWorld.clone().invert();
-		let world_to_right = camera_xr_.cameras[1].matrixWorld.clone().invert();
-		if (image_mpi_ != null) image_mpi_.update(world_to_left, world_to_right);
-	} else {
-		let world_to_left = camera.matrixWorld;
-		if (image_mpi_ != null) image_mpi_.update(world_to_left, null);
-	}
-
-  {
-		let message = '#cam_' + camera_xr_.cameras.length;
-		text_logger_.UpdateText(message);
-	}
+  // {
+	// 	let message = '#cam_' + camera_xr_.cameras.length;
+	// 	text_logger_.UpdateText(message);
+	// }
 
 	renderer.render( scene, camera );
 
@@ -70,8 +46,6 @@ function loop() {
 		object.rotation.x += 0.01;
 		object.rotation.y += 0.03;
 	}
-	handleControllerLeft();
-	handleControllerRight();
 };
 
 function addBasicCube() {
@@ -131,48 +105,11 @@ function init() {
 	dolly.add(vr_control.controllerGrips[ 0 ], vr_control.controllers[ 0 ]);
 	dolly.add(vr_control.controllerGrips[ 1 ], vr_control.controllers[ 1 ]);
 
-	if (camera_xr_.cameras.length == 0) {
-		window.addEventListener("keydown", (e) => {
-			if (gamepad_0 || gamepad_1) return;
-
-			switch (e.key) {
-				case 'w':
-					MoveDolly(0, 0, -1); break;
-				case 's':
-					MoveDolly(0, 0, 1); break;
-				case 'a':
-					MoveDolly(-1, 0, 0); break;
-				case 'd':
-					MoveDolly(1, 0, 0); break;
-				case 'q':
-					MoveDolly(0, 1, 0); break;
-				case 'e':
-					MoveDolly(0, -1, 0); break;
-				case 'ArrowLeft':
-					dolly.rotation.y += rotate_speed; break;
-				case 'ArrowRight':
-				  dolly.rotation.y -= rotate_speed; break;
-				case 'ArrowUp':
-					dolly.rotation.x += rotate_speed; break;
-				case 'ArrowDown':
-					dolly.rotation.x -= rotate_speed; break;
-				default:
-			}
-		});
-	}
-
-	// let video_lr = new DM_MPI.VideoLR(scene);
-	// let image_layers_mpi = new DM_MPI.ImageLayersMPI(scene);
-	// image_mpi_ = new DM_VIDEO_MPI.VideoMPI(scene, camera);
-	image_mpi_ = new DM_MPI.ImageMPI(scene, camera);
-
-	// gaussian_splatting = new DM_GS.GaussianSplattingRender(scene, renderer, camera);
-	// gaussian_splatting.LoadPlyFromUrl('./assets/pointcloud/jmw_night.ply');
-
 	DM_UTILS.setUpRoom(scene)
 	DM_UTILS.addLighting(scene, true);
 	addBasicCube();
 	text_logger_ = new DM_UTILS.TextLoader(scene);
+	// dm_ws_ = new DmWs(text_logger_);
 
 	var mesh = DM_UTILS.createExperimentalCube();
 	mesh.position.set( 0.9, 1, -1.8 );
